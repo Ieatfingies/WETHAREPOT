@@ -4,7 +4,7 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class SolverConfig:
-    executable_path: Path = Path("build/swe_solver.exe")
+    executable_path: Path = Path("build/swe_solver_oneway.exe")
     grid_size: int = 256
     resolution_m: float = 10.0
     save_interval_s: float = 300.0
