@@ -20,8 +20,10 @@ from geospatial.acquisition.regions import (
 
 ox.settings.requests_timeout = 180
 
-RAW_DIR = "data/raw"
-PROCESSED_DIR = "data/processed"
+from pathlib import Path
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+RAW_DIR = str(_REPO_ROOT / "data" / "raw") if (_REPO_ROOT / "data").exists() else "data/raw"
+PROCESSED_DIR = str(_REPO_ROOT / "data" / "processed") if (_REPO_ROOT / "data").exists() else "data/processed"
 os.makedirs(RAW_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: wetharepot-api
+    runtime: docker
+    dockerfilePath: Dockerfile
+    plan: starter
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: RUNS_BASE_DIR
+        value: /app/data/processed/api_runs
+      - key: SOLVER_PATH
+        value: /app/build/swe_solver_oneway

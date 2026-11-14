@@ -867,9 +867,18 @@ export function FloodTwin3D({
           const rawElev = dem[r]?.[c] ?? minElev;
           const terrainY = CATCHMENT_FLOAT_Y + ((rawElev - minElev) / elevSpan) * (18 * verticalExaggeration);
 
-          // Realistic variation based on spatial hash (3.5m to 12m height)
+          // Geographically realistic Bengaluru building extrusion:
+          // Low-rise residential (3.5-7m), mid-rise apartments (8-16m), and commercial/tech blocks (18-32m)
           const hash = Math.sin(r * 12.9898 + c * 78.233) * 43758.5453;
-          const bldgHeight = 3.5 + (Math.abs(hash) % 8.5);
+          const normHash = Math.abs(hash) % 1.0;
+          let bldgHeight: number;
+          if (normHash < 0.60) {
+            bldgHeight = 4.0 + normHash * 6.0; // 4m - 7.6m low-rise dwellings
+          } else if (normHash < 0.88) {
+            bldgHeight = 8.5 + (normHash - 0.60) * 25.0; // 8.5m - 15.5m mid-rise apartment blocks
+          } else {
+            bldgHeight = 16.0 + (normHash - 0.88) * 110.0; // 16m - 29m tech-park & commercial towers
+          }
 
           buildingInstances.push({
             x,
@@ -1220,20 +1229,6 @@ export function FloodTwin3D({
           </div>
         </div>
       </div>
-
-      {/* Graceful State: Before Simulation Run */}
-      {(!frameH || frameH.length === 0) && (
-        <div className="twin-dry-prompt">
-          <div className="dry-prompt-card">
-            <Cube3DIcon width={24} height={24} />
-            <h4>Dry Terrain Topology</h4>
-            <p>
-              Showing Copernicus 30m DEM & OpenStreetMap building block extrusions.
-              Execute simulation to model dynamic flood propagation.
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
