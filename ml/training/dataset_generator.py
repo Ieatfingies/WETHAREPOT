@@ -9,17 +9,32 @@ DATASET_DIR = "data/processed/dataset"
 TEMP_DIR = "data/processed/tmp_sim"
 os.makedirs(DATASET_DIR, exist_ok=True)
 
-# D01 & D09: Train/Val across 4 diverse Bengaluru catchments, hold out Koramangala completely for Test
+SOLVER_BIN = "build/swe_solver.exe" if os.name == "nt" else "build/swe_solver"
+
 TRAIN_REGIONS = ["bellandur", "hsr_layout", "mahadevapura", "whitefield"]
 TEST_REGIONS = ["koramangala"]
-
-# D02: Varied monsoon storm intensities (mm/hr)
 RAIN_SCENARIOS_MMHR = [30.0, 60.0, 95.0, 130.0]
 
-DURATION_S = 1800.0      # 30-minute storm simulation
-SAVE_INTERVAL_S = 60.0   # 1-minute macro-steps (30 transitions per run)
+DURATION_S = 1800.0
+SAVE_INTERVAL_S = 60.0
 GRID_SIZE = 256
 DX_M = 10.0
+
+
+def ensure_solver_compiled() -> None:
+    if os.path.isfile(SOLVER_BIN):
+        return
+    os.makedirs("build", exist_ok=True)
+    sources = [
+        "simulation/core/ShallowWaterSolver.cpp",
+        "simulation/core/main_cli.cpp",
+    ]
+    print(f"[Dataset] Compiling C++ solver -> {SOLVER_BIN} ...")
+    if os.name == "nt":
+        cmd = ["g++", "-O3", "-std=c++17", "-fopenmp", *sources, "-o", SOLVER_BIN]
+    else:
+        cmd = ["clang++", "-O3", "-std=c++17", *sources, "-o", SOLVER_BIN]
+    subprocess.run(cmd, check=True)
 
 
 def run_single_scenario(region_id: str, rain_mmhr: float, split: str, sample_offset: int) -> int:
@@ -40,7 +55,7 @@ def run_single_scenario(region_id: str, rain_mmhr: float, split: str, sample_off
     rough.tofile(os.path.join(in_dir, "rough.bin"))
 
     cmd = [
-        "build/swe_solver.exe",
+        SOLVER_BIN,
         in_dir,
         out_dir,
         str(GRID_SIZE),
@@ -54,7 +69,6 @@ def run_single_scenario(region_id: str, rain_mmhr: float, split: str, sample_off
     n_frames = int(DURATION_S // SAVE_INTERVAL_S)
     rain_ms = np.full((GRID_SIZE, GRID_SIZE), rain_mmhr / 3_600_000.0, dtype=np.float32)
 
-    # D03: Dry initial state at t=0
     h_prev = np.zeros((GRID_SIZE, GRID_SIZE), dtype=np.float32)
     u_prev = np.zeros((GRID_SIZE, GRID_SIZE), dtype=np.float32)
     v_prev = np.zeros((GRID_SIZE, GRID_SIZE), dtype=np.float32)
@@ -69,11 +83,9 @@ def run_single_scenario(region_id: str, rain_mmhr: float, split: str, sample_off
         u_next = np.fromfile(f"{prefix}_u.bin", dtype=np.float32).reshape(GRID_SIZE, GRID_SIZE)
         v_next = np.fromfile(f"{prefix}_v.bin", dtype=np.float32).reshape(GRID_SIZE, GRID_SIZE)
 
-        # D10: Dataset quality & physical validity check
         assert not np.isnan(h_next).any(), f"NaN detected in {region_id} @ {rain_mmhr}"
         assert (h_next >= 0.0).all(), f"Negative water depth in {region_id} @ {rain_mmhr}"
 
-        # D06 & D07: Input X_t (7, H, W) and Target Y_{t+1} (3, H, W) per DATA_CONTRACT.md
         x_tensor = np.stack([dem, mask, rough, h_prev, u_prev, v_prev, rain_ms], axis=0)
         y_tensor = np.stack([h_next, u_next, v_next], axis=0)
 
@@ -83,7 +95,6 @@ def run_single_scenario(region_id: str, rain_mmhr: float, split: str, sample_off
         h_prev, u_prev, v_prev = h_next, u_next, v_next
         count += 1
 
-    # Save visual sanity-check image for Bellandur 95 mm/hr
     if region_id == "bellandur" and abs(rain_mmhr - 95.0) < 1e-3:
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
         im0 = axes[0].imshow(dem, cmap="terrain")
@@ -97,12 +108,13 @@ def run_single_scenario(region_id: str, rain_mmhr: float, split: str, sample_off
         plt.tight_layout()
         plt.savefig("data/processed/bellandur_flood_preview.png", dpi=150)
         plt.close()
-        print("[Dataset] Saved visual check -> data/processed/bellandur_flood_preview.png")
 
     return count
 
 
 def main():
+    ensure_solver_compiled()
+
     train_idx = 0
     val_idx = 0
     for reg in TRAIN_REGIONS:
