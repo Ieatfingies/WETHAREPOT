@@ -473,17 +473,17 @@ export function ControlSidebar({
             {loading ? (
               <span className="cta-content">
                 <CompassRoseIcon width={18} height={18} className="cta-spinning-icon" />
-                <span>Solving 2D Shallow Water Equations…</span>
+                <span>Running Simulation…</span>
               </span>
             ) : justSucceeded ? (
               <span className="cta-content">
                 <span className="cta-check">✓</span>
-                <span>Hydrodynamic Simulation Synchronized</span>
+                <span>Simulation Complete</span>
               </span>
             ) : (
               <span className="cta-content">
                 <CompassRoseIcon width={18} height={18} />
-                <span>Execute Hydrodynamic Simulation</span>
+                <span>Run Simulation</span>
               </span>
             )}
           </button>

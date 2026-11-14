@@ -45,8 +45,8 @@ function makeFloodImage(grid: number[][]): string {
       const depth = Number(rowData?.[col] ?? 0);
       const index = (row * width + col) * 4;
 
-      // Inundation cutoff: depths under 3cm (0.03m) are considered negligible surface wetting
-      if (!Number.isFinite(depth) || depth <= 0.03) {
+      // Inundation cutoff: depths under 1cm (0.01m) are considered negligible surface wetting
+      if (!Number.isFinite(depth) || depth <= 0.01) {
         image.data[index + 3] = 0;
         continue;
       }

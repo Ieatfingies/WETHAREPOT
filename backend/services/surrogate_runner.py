@@ -65,7 +65,7 @@ class NeuralSurrogateRunner:
                 steps=steps,
                 dx_m=self._solver_cfg.resolution_m,
                 dy_m=self._solver_cfg.resolution_m,
-                project_mass=True,
+                project_mass=False,
             )
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             all_frames = out["h_frames"]

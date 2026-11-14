@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from ml.models.unet import UNet
+from ml.models import get_model
 
 
 def rollout_surrogate(
@@ -19,11 +19,12 @@ def rollout_surrogate(
     )
 
     checkpoint = torch.load(weights_path, map_location=device, weights_only=False)
-    model = UNet(
-        in_channels=checkpoint["input_channels"],
-        out_channels=checkpoint["output_channels"],
-        base=checkpoint["base_channels"],
-    ).to(device)
+    model_name = checkpoint.get("model_name", "unet_base16")
+    base_channels = checkpoint.get("base_channels", 16)
+    in_c = checkpoint.get("input_channels", 7)
+    out_c = checkpoint.get("output_channels", 3)
+
+    model = get_model(model_name, in_channels=in_c, out_channels=out_c, base=base_channels).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 

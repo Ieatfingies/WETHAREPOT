@@ -98,9 +98,9 @@ export function calculateSolarState(
   let ambientIntensity = 1.1;
   let fogColor = 0xece6dc;
   let backgroundColor = 0xece6dc;
-  let isNight = false;
+  let isNight = hourOfDay >= 17.0 || hourOfDay < 6.0;
 
-  if (elevationDeg > 18) {
+  if (elevationDeg > 18 && hourOfDay < 17.0 && hourOfDay >= 6.0) {
     // Broad daylight
     phase = "day";
     sunColor = 0xfffae5;
@@ -109,7 +109,7 @@ export function calculateSolarState(
     ambientIntensity = 1.1;
     fogColor = 0xe6dfd3;
     backgroundColor = 0xe6dfd3;
-  } else if (elevationDeg > 3) {
+  } else if (elevationDeg > 3 && hourOfDay < 17.0 && hourOfDay >= 6.0) {
     // Golden Hour (Warm ochre & long shadows)
     phase = "golden_hour";
     sunColor = 0xf59842; // Deep warm amber
@@ -118,17 +118,17 @@ export function calculateSolarState(
     ambientIntensity = 0.95;
     fogColor = 0xd9c2a7;
     backgroundColor = 0xd9c2a7;
-  } else if (elevationDeg > -6) {
-    // Civil Twilight / Dawn
-    phase = hourOfDay < 12 ? "dawn" : "twilight";
+  } else if (elevationDeg > -6 && hourOfDay >= 17.0 && hourOfDay < 18.5) {
+    // Evening Twilight past 5:00 PM (Dusk sky with warm glowing lights)
+    phase = "twilight";
     sunColor = 0xc46951; // Terracotta dusk
     sunIntensity = 0.7;
-    ambientColor = 0x5a5666; // Slate twilight
+    ambientColor = 0x4a4656;
     ambientIntensity = 0.75;
-    fogColor = 0x484252;
-    backgroundColor = 0x484252;
+    fogColor = 0x383442;
+    backgroundColor = 0x383442;
   } else {
-    // Night (Moonlit indigo & deep ink)
+    // Night past dusk (Moonlit indigo & deep ink with sparkling apartment windows :3)
     phase = "night";
     isNight = true;
     sunColor = 0x7b96b2; // Cool moonlight

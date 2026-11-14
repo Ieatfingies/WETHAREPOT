@@ -25,7 +25,68 @@ interface FloodTwin3DProps {
 }
 
 const STRIDE = 2; // Downsample 256x256 to 128x128 for crisp low-poly facets & silky 60fps
-const INUNDATION_THRESHOLD_M = 0.03;
+const INUNDATION_THRESHOLD_M = 0.01; // 1cm cutoff so lake bed ponding and shallow inflows render visibly
+
+/**
+ * Generates a warm, cozy procedural apartment lights texture for evening/night past 5:00 PM :3
+ */
+function createApartmentLightsTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+
+  // Black background so unlit wall surfaces have 0 emissive boost
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, 128, 128);
+
+  const rows = 8;
+  const cols = 8;
+  const winW = 8;
+  const winH = 6;
+  const padX = 4;
+  const padY = 5;
+
+  const warmHues = [
+    "#ffe29a", // Cozy incandescent lamp
+    "#ffc870", // Warm amber living room
+    "#fff3d1", // Soft warm white bedroom
+    "#fca311", // Golden balcony glow
+    "#ffeaa7", // Soft tungsten
+  ];
+
+  let seed = 1337;
+  const rnd = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      // ~72% of apartment windows lit past 5 PM in Bengaluru residential blocks :3
+      if (rnd() > 0.28) {
+        const x = c * 16 + padX;
+        const y = r * 16 + padY;
+        const color = warmHues[Math.floor(rnd() * warmHues.length)];
+
+        // Ambient window halo bloom
+        ctx.fillStyle = "rgba(255, 215, 140, 0.35)";
+        ctx.fillRect(x - 1, y - 1, winW + 2, winH + 2);
+
+        // Core tiny window light
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, winW, winH);
+      }
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(2, 4);
+  return texture;
+}
 
 interface BengaluruLake {
   name: string;
@@ -133,11 +194,23 @@ export function FloodTwin3D({
 
   const [verticalExaggeration, setVerticalExaggeration] = useState<number>(2.0);
   const [showRain, setShowRain] = useState<boolean>(true);
+  const [sceneReady, setSceneReady] = useState<boolean>(false);
+  const showRainRef = useRef(showRain);
+  const rainfallMmHrRef = useRef(rainfallMmHr);
+
+  useEffect(() => {
+    showRainRef.current = showRain;
+    rainfallMmHrRef.current = rainfallMmHr;
+  }, [showRain, rainfallMmHr]);
+
   const [hoveredCell, setHoveredCell] = useState<{
     elevationM: number;
     depthM: number;
     isBuilding: boolean;
   } | null>(null);
+
+  // Tiny procedural apartment window lights texture for evening/night past 5 PM :3
+  const apartmentLightsTexture = useMemo(() => createApartmentLightsTexture(), []);
 
   // Live fallback date initialized once to preserve React purity
   const [liveDate] = useState(() => new Date());
@@ -189,7 +262,7 @@ export function FloodTwin3D({
     };
   }, [theme]);
 
-  // Initialize Three.js scene
+  // Initialize Three.js scene (Runs ONCE on mount — never torn down on parameter changes)
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
@@ -200,8 +273,7 @@ export function FloodTwin3D({
     // 1. Scene
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.background = new THREE.Color(colors.background);
-    scene.fog = new THREE.FogExp2(colors.fog, 0.0018);
+    scene.fog = new THREE.FogExp2(0xece6dc, 0.0018);
 
     // 2. Camera (Isometric oblique perspective over Bengaluru metropolitan area)
     const camera = new THREE.PerspectiveCamera(38, width / height, 1, 3500);
@@ -231,16 +303,16 @@ export function FloodTwin3D({
     controls.dampingFactor = 0.06;
     controls.maxPolarAngle = Math.PI / 2.08; // Prevent looking from below ground
     controls.minDistance = 60;
-    controls.maxDistance = 1200;
+    controls.maxDistance = 1400;
     controls.target.set(0, 10, 0);
 
     // 5. Lighting
-    const ambientLight = new THREE.AmbientLight(solarState.ambientColor, solarState.ambientIntensity);
+    const ambientLight = new THREE.AmbientLight(0x9ea298, 1.1);
     ambientLightRef.current = ambientLight;
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(solarState.sunColor, solarState.sunIntensity);
-    sunLight.position.set(...solarState.sunDirection);
+    const sunLight = new THREE.DirectionalLight(0xfffae5, 1.7);
+    sunLight.position.set(150, 200, 150);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 2048;
     sunLight.shadow.mapSize.height = 2048;
@@ -254,10 +326,7 @@ export function FloodTwin3D({
     sunLightRef.current = sunLight;
     scene.add(sunLight);
 
-    const rimLight = new THREE.DirectionalLight(
-      solarState.isNight ? 0x5a7a9e : 0x8ab9c2,
-      solarState.isNight ? 0.6 : 0.45
-    );
+    const rimLight = new THREE.DirectionalLight(0x8ab9c2, 0.45);
     rimLight.position.set(-160, 120, -160);
     rimLightRef.current = rimLight;
     scene.add(rimLight);
@@ -284,7 +353,7 @@ export function FloodTwin3D({
       }
 
       // Rain particle animation loop (falls across whole 640x640 metropolitan domain)
-      if (rainMeshRef.current && rainPositionsRef.current && showRain) {
+      if (rainMeshRef.current && rainPositionsRef.current && showRainRef.current && rainfallMmHrRef.current > 0) {
         const pos = rainPositionsRef.current;
         const dropData = rainDropDataRef.current;
         const count = dropData.length;
@@ -330,16 +399,20 @@ export function FloodTwin3D({
     };
     window.addEventListener("resize", handleResize);
 
+    setSceneReady(true);
+
     return () => {
       window.removeEventListener("resize", handleResize);
       if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
       controls.dispose();
       renderer.dispose();
       scene.clear();
+      sceneRef.current = null;
+      setSceneReady(false);
     };
-  }, [colors, solarState, showRain, rainfallMmHr]);
+  }, []);
 
-  // Dynamically update Sun, Sky & Ambient Lighting as solar time changes
+  // Dynamically update Sun, Sky & Ambient Lighting as solar time changes, plus cozy apartment lights past 5:00 PM :3
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
@@ -363,23 +436,30 @@ export function FloodTwin3D({
       scene.fog.color.setHex(solarState.fogColor);
     }
 
-    // Subtle night illumination on building windows (both active catchment & regional city)
+    // Cozy Tiny Apartment Lights past 5:00 PM (17:00 IST) :3
+    const isPast5PMOrNight = currentHour >= 17.0 || currentHour < 6.0 || solarState.isNight;
+    const windowGlowIntensity = isPast5PMOrNight ? 0.95 : 0.0;
+
     if (buildingsMeshRef.current) {
       const mat = buildingsMeshRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissive.setHex(solarState.isNight ? 0xcc9944 : 0x000000);
-      mat.emissiveIntensity = solarState.isNight ? 0.38 : 0.0;
+      mat.emissive.setHex(0xffdf88);
+      mat.emissiveMap = isPast5PMOrNight ? apartmentLightsTexture : null;
+      mat.emissiveIntensity = windowGlowIntensity;
+      mat.needsUpdate = true;
     }
     if (cityBuildingsMeshRef.current) {
       const mat = cityBuildingsMeshRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissive.setHex(solarState.isNight ? 0xcc9944 : 0x000000);
-      mat.emissiveIntensity = solarState.isNight ? 0.32 : 0.0;
+      mat.emissive.setHex(0xffdf88);
+      mat.emissiveMap = isPast5PMOrNight ? apartmentLightsTexture : null;
+      mat.emissiveIntensity = isPast5PMOrNight ? 0.90 : 0.0;
+      mat.needsUpdate = true;
     }
-  }, [solarState]);
+  }, [solarState, currentHour, apartmentLightsTexture]);
 
   // Build / Update Low-Poly Raindrop Particle System
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene) return;
+    if (!sceneReady || !scene) return;
 
     if (rainMeshRef.current) {
       scene.remove(rainMeshRef.current);
@@ -438,12 +518,12 @@ export function FloodTwin3D({
       rainGeo.dispose();
       rainMat.dispose();
     };
-  }, [rainfallMmHr, showRain]);
+  }, [sceneReady, rainfallMmHr, showRain]);
 
   // Build / Update Terrain & Pedestal Mesh
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene || !dem || dem.length === 0) return;
+    if (!sceneReady || !scene || !dem || dem.length === 0) return;
 
     // Remove old terrain & city meshes
     if (terrainMeshRef.current) {
@@ -662,15 +742,19 @@ export function FloodTwin3D({
     scene.add(lakesGroup);
     cityLakesGroupRef.current = lakesGroup;
 
-    // 5. Surrounding Bengaluru City Districts (InstancedMesh)
+    // 5. Surrounding Bengaluru City Districts (InstancedMesh with tiny apartment lights past 5 PM :3)
     const cityBlocks = generateBengaluruCityBlocks();
     if (cityBlocks.length > 0) {
       const cBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+      const isPast5PM = currentHour >= 17.0 || currentHour < 6.0 || solarState.isNight;
       const cBoxMat = new THREE.MeshStandardMaterial({
         color: colors.building,
         roughness: 0.78,
         metalness: 0.08,
         flatShading: true,
+        emissive: new THREE.Color(0xffdf88),
+        emissiveMap: isPast5PM ? apartmentLightsTexture : null,
+        emissiveIntensity: isPast5PM ? 0.90 : 0.0,
       });
 
       const cInstMesh = new THREE.InstancedMesh(cBoxGeo, cBoxMat, cityBlocks.length);
@@ -704,6 +788,11 @@ export function FloodTwin3D({
     pedestalMeshRef.current = pedestalMesh;
 
     return () => {
+      if (terrainMeshRef.current) {
+        scene.remove(terrainMeshRef.current);
+        terrainMeshRef.current.geometry.dispose();
+        terrainMeshRef.current = null;
+      }
       if (pedestalMeshRef.current) {
         scene.remove(pedestalMeshRef.current);
         pedestalMeshRef.current.geometry.dispose();
@@ -732,12 +821,12 @@ export function FloodTwin3D({
         cityBuildingsMeshRef.current = null;
       }
     };
-  }, [dem, minElev, maxElev, verticalExaggeration, theme, colors]);
+  }, [sceneReady, dem, minElev, maxElev, verticalExaggeration, theme, colors, currentHour, solarState, apartmentLightsTexture]);
 
-  // Build / Update 3D Building Blocks (InstancedMesh)
+  // Build / Update 3D Building Blocks (InstancedMesh with tiny apartment lights past 5 PM :3)
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene || !dem || !buildingMask) return;
+    if (!sceneReady || !scene || !dem || !buildingMask) return;
 
     if (buildingsMeshRef.current) {
       scene.remove(buildingsMeshRef.current);
@@ -779,11 +868,15 @@ export function FloodTwin3D({
 
     const blockSize = (planeSize / cols) * STRIDE * 0.92;
     const boxGeo = new THREE.BoxGeometry(blockSize, 1, blockSize);
+    const isPast5PM = currentHour >= 17.0 || currentHour < 6.0 || solarState.isNight;
     const boxMat = new THREE.MeshStandardMaterial({
       color: colors.building,
       roughness: 0.75,
       metalness: 0.1,
       flatShading: true,
+      emissive: new THREE.Color(0xffdf88),
+      emissiveMap: isPast5PM ? apartmentLightsTexture : null,
+      emissiveIntensity: isPast5PM ? 0.95 : 0.0,
     });
 
     const instancedMesh = new THREE.InstancedMesh(boxGeo, boxMat, buildingInstances.length);
@@ -802,12 +895,12 @@ export function FloodTwin3D({
     instancedMesh.instanceMatrix.needsUpdate = true;
     scene.add(instancedMesh);
     buildingsMeshRef.current = instancedMesh;
-  }, [dem, buildingMask, minElev, maxElev, verticalExaggeration, colors]);
+  }, [sceneReady, dem, buildingMask, minElev, maxElev, verticalExaggeration, colors, currentHour, solarState, apartmentLightsTexture]);
 
   // Build / Dynamically Update 3D Water Surface & Depths
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene || !dem) return;
+    if (!sceneReady || !scene || !dem) return;
 
     if (waterMeshRef.current) {
       scene.remove(waterMeshRef.current);
@@ -839,7 +932,7 @@ export function FloodTwin3D({
           const z = -planeSize / 2 + (r / rows) * planeSize;
           const rawElev = dem[r]?.[c] ?? minElev;
           const terrainY = ((rawElev - minElev) / elevSpan) * (18 * verticalExaggeration);
-          const waterSurfaceY = terrainY + Math.max(0.2, h * verticalExaggeration * 1.5);
+          const waterSurfaceY = terrainY + Math.max(0.12, h * verticalExaggeration * 1.5);
 
           waterCells.push({
             x,
@@ -896,7 +989,7 @@ export function FloodTwin3D({
 
     scene.add(waterInstanced);
     waterMeshRef.current = waterInstanced as unknown as THREE.Mesh;
-  }, [dem, frameH, minElev, maxElev, verticalExaggeration]);
+  }, [sceneReady, dem, frameH, minElev, maxElev, verticalExaggeration]);
 
   // Raycasting cell inspection on mouse move
   const handlePointerMove = useCallback(
