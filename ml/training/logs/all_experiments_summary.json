@@ -1,0 +1,32 @@
+{
+  "baseline_unet_legacy": {
+    "model": "unet_base16",
+    "loss": "legacy",
+    "checkpoint": "ml/weights/baseline_unet_legacy.pth",
+    "best_val_loss": 0.0010873237442865502
+  },
+  "exp_unet_base16_composite": {
+    "model": "unet_base16",
+    "loss": "composite",
+    "checkpoint": "ml/weights/exp_unet_base16_composite.pth",
+    "best_val_loss": 0.0026382277283119038
+  },
+  "exp_unet_base32_composite": {
+    "model": "unet_base32",
+    "loss": "composite",
+    "checkpoint": "ml/weights/exp_unet_base32_composite.pth",
+    "best_val_loss": 0.0030338789001689292
+  },
+  "exp_res_unet_composite": {
+    "model": "res_unet",
+    "loss": "composite",
+    "checkpoint": "ml/weights/exp_res_unet_composite.pth",
+    "best_val_loss": 0.003823225706582889
+  },
+  "exp_multiscale_res_unet_composite": {
+    "model": "multiscale_res_unet",
+    "loss": "composite",
+    "checkpoint": "ml/weights/exp_multiscale_res_unet_composite.pth",
+    "best_val_loss": 0.004015201673610136
+  }
+}
