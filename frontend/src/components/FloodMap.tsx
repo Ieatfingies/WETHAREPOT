@@ -57,6 +57,9 @@ export function FloodMap({ center, meta, frameH, buildingMask }: FloodMapProps) 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const mapReadyRef = useRef(false);
+  const latestPropsRef = useRef({ meta, frameH });
+
+  latestPropsRef.current = { meta, frameH };
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -88,6 +91,32 @@ export function FloodMap({ center, meta, frameH, buildingMask }: FloodMapProps) 
     map.on("load", () => {
       mapReadyRef.current = true;
       map.resize();
+
+      const latest = latestPropsRef.current;
+      if (latest.meta && latest.frameH?.length) {
+        const [west, south, east, north] = latest.meta.bounds_wgs84;
+        const coordinates: [[number, number], [number, number], [number, number], [number, number]] = [
+          [west, north],
+          [east, north],
+          [east, south],
+          [west, south],
+        ];
+
+        const url = makeFloodImage(latest.frameH);
+        if (url) {
+          map.addSource("flood-depth", {
+            type: "image",
+            url,
+            coordinates,
+          });
+          map.addLayer({
+            id: "flood-depth-layer",
+            type: "raster",
+            source: "flood-depth",
+            paint: { "raster-opacity": 0.78, "raster-fade-duration": 150 },
+          });
+        }
+      }
     });
 
     return () => {
