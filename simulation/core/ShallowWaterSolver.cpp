@@ -142,6 +142,17 @@ double ShallowWaterSolver::stepAdaptive(FloodState& state, double max_step_s) {
                 bool solid = false;
                 sampleNeighbor(nx_idx, ny_idx, hN, uN, vN, zN, solid);
 
+                // One-way external boundary: block inward flow.
+                const bool outside =
+                    (nx_idx < 0 || nx_idx >= W || ny_idx < 0 || ny_idx >= H);
+
+                if (outside && cfg_.open_boundaries) {
+                    const float normal_velocity = uC * nx + vC * ny;
+                    if (normal_velocity < 0.0f) {
+                        solid = true;
+                    }
+                }
+
                 if (solid) {
                     const float un = uC * nx + vC * ny;
                     const float u_refl = uC - 2.0f * un * nx;
