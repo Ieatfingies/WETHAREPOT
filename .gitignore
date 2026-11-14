@@ -32,3 +32,16 @@ Thumbs.db
 .vscode/
 cache/
 !ml/weights/unet_flood.pth
+
+# Local Databases and Environment
+*.db
+*.sqlite3
+.env
+
+# Temporary and Backup files
+*.bak
+frontend/backups/
+
+simulation/core/*.diagnostic.*
+simulation/core/*.pre_*
+simulation/core/main_cli.*

@@ -1,0 +1,8 @@
+# WETHAREPOT — Production Robots Configuration
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Production Sitemap configuration point
+# Replace domain with verified hostname upon DNS deployment
+Sitemap: https://wetharepot.internal/sitemap.xml

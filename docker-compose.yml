@@ -1,0 +1,52 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wetharepot-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=postgresql://wetharepot:wetharepot_secret@db:5432/wetharepot
+      - RUNS_BASE_DIR=/app/data/processed/api_runs
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: wetharepot-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: wetharepot-db
+    environment:
+      POSTGRES_USER: wetharepot
+      POSTGRES_PASSWORD: wetharepot_secret
+      POSTGRES_DB: wetharepot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations/001_create_simulation_runs.sql:/docker-entrypoint-initdb.d/001_create_simulation_runs.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wetharepot -d wetharepot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
