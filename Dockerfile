@@ -1,4 +1,3 @@
-
 FROM python:3.12-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -44,6 +43,9 @@ ENV PYTHONUNBUFFERED=1
 ENV HOST=0.0.0.0
 ENV PORT=8000
 ENV SOLVER_PATH=/app/build/swe_solver_oneway
+ENV SOLVER_TIMEOUT_S=300.0
+ENV OMP_NUM_THREADS=2
+ENV MKL_NUM_THREADS=2
 
 EXPOSE 8000
 

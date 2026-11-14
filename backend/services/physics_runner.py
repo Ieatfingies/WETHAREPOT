@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import time
@@ -74,6 +75,11 @@ class CppShallowWaterRunner:
                 str(interval_s),
             ]
 
+            env = os.environ.copy()
+            # Constrain OpenMP to prevent thread thrashing on cloud vCPUs
+            env.setdefault("OMP_NUM_THREADS", "2")
+            env.setdefault("MKL_NUM_THREADS", "2")
+
             t0 = time.perf_counter()
             try:
                 proc = subprocess.run(
@@ -82,6 +88,7 @@ class CppShallowWaterRunner:
                     text=True,
                     timeout=self._cfg.timeout_s,
                     check=True,
+                    env=env,
                 )
             except subprocess.TimeoutExpired as exc:
                 raise SolverExecutionError(

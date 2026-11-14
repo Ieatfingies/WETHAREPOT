@@ -15,3 +15,9 @@ services:
         value: /app/data/processed/api_runs
       - key: SOLVER_PATH
         value: /app/build/swe_solver_oneway
+      - key: SOLVER_TIMEOUT_S
+        value: "300.0"
+      - key: OMP_NUM_THREADS
+        value: "2"
+      - key: MKL_NUM_THREADS
+        value: "2"

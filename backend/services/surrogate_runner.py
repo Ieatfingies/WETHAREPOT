@@ -18,8 +18,13 @@ class NeuralSurrogateRunner:
         self._engine: Optional[object] = None
 
     def _find_valid_weights(self) -> Optional[Path]:
+        repo_root = Path(__file__).resolve().parents[2]
         candidates = [
             self._cfg.weights_path,
+            repo_root / self._cfg.weights_path,
+            repo_root / "ml" / "weights" / "wetharepot_surrogate_final.pth",
+            repo_root / "ml" / "weights" / "exp_clean_multiscale_pinn_v2.pth",
+            repo_root / "ml" / "weights" / "unet_flood.pth",
             Path("ml/weights/wetharepot_surrogate_final.pth"),
             Path("ml/weights/exp_clean_multiscale_pinn_v2.pth"),
             Path("ml/weights/unet_flood.pth"),
@@ -90,4 +95,8 @@ class NeuralSurrogateRunner:
             )
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             frames = [np.asarray(f, dtype=np.float32) for f in raw_frames]
-            return frames, elapsed_ms
+            stride = max(1, int(round(self._solver_cfg.save_interval_s / 60.0)))
+            saved = [frames[i] for i in range(0, len(frames), stride)]
+            if len(saved) == 0 or not np.array_equal(saved[-1], frames[-1]):
+                saved.append(frames[-1])
+            return saved, elapsed_ms
