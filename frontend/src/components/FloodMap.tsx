@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 import type { ImageSource, Map } from "maplibre-gl";
 import type { SimulationMeta } from "../types/simulation";
 import "maplibre-gl/dist/maplibre-gl.css";
