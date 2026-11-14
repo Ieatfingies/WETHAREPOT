@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
-
+import os
 
 @dataclass(frozen=True)
 class SolverConfig:
-    executable_path: Path = Path("build/swe_solver_oneway.exe")
+    executable_path: Path = Path(
+    os.getenv("SOLVER_PATH", "build/swe_solver_oneway.exe")
+)
     grid_size: int = 256
     resolution_m: float = 10.0
     save_interval_s: float = 300.0

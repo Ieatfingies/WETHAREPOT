@@ -1,4 +1,4 @@
-#include "Config.hpp"
+#include "config.hpp"
 #include "FloodState.hpp"
 #include "ShallowWaterSolver.hpp"
 #include <iostream>
