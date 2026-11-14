@@ -34,22 +34,29 @@ def compute_statistics(files):
 
 
 class FloodDataset(Dataset):
-    def __init__(self, files, x_mean, x_std, y_mean, y_std):
+    def __init__(self, files, x_mean, x_std, y_mean, y_std, return_raw: bool = False):
         self.files = list(files)
         self.x_mean = x_mean[:, None, None]
         self.x_std = x_std[:, None, None]
         self.y_mean = y_mean[:, None, None]
         self.y_std = y_std[:, None, None]
+        self.return_raw = return_raw
 
     def __len__(self):
         return len(self.files)
 
     def __getitem__(self, index):
         with np.load(self.files[index]) as data:
-            x = data["x"].astype(np.float32)
-            y = data["y"].astype(np.float32)
+            x_raw = data["x"].astype(np.float32)
+            y_raw = data["y"].astype(np.float32)
 
-        x = (x - self.x_mean) / self.x_std
-        y = (y - self.y_mean) / self.y_std
+        x_norm = (x_raw - self.x_mean) / self.x_std
+        y_norm = (y_raw - self.y_mean) / self.y_std
 
-        return torch.from_numpy(x.copy()), torch.from_numpy(y.copy())
+        if self.return_raw:
+            return (
+                torch.from_numpy(x_norm.copy()),
+                torch.from_numpy(y_norm.copy()),
+                torch.from_numpy(x_raw.copy()),
+            )
+        return torch.from_numpy(x_norm.copy()), torch.from_numpy(y_norm.copy())

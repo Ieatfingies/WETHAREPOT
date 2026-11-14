@@ -1,0 +1,20 @@
+{
+  "exp_name": "unet_base16_composite",
+  "model_name": "unet_base16",
+  "loss_mode": "composite",
+  "best_val_loss": 0.0050162905536126345,
+  "total_params": 484051,
+  "history": [
+    {
+      "epoch": 1,
+      "lr": 1e-05,
+      "train_loss": 0.3518625479147611,
+      "train_data_loss": 0.3304468928968077,
+      "train_mass_loss": 0.002594772669290937,
+      "train_mom_loss": 0.6398988145772578,
+      "val_loss": 0.0050162905536126345,
+      "val_data_loss": 0.0038432380533777177,
+      "val_mass_loss": 1.0316372595298162e-05
+    }
+  ]
+}
