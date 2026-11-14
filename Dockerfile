@@ -21,6 +21,10 @@ RUN pip install --no-cache-dir \
     rasterio \
     pyproj
 
+# CPU-only PyTorch for ResUNet / surrogate inference
+RUN pip install --no-cache-dir torch \
+    --index-url https://download.pytorch.org/whl/cpu
+
 COPY backend ./backend
 COPY geospatial ./geospatial
 COPY simulation ./simulation
@@ -29,6 +33,7 @@ COPY ml ./ml
 
 RUN mkdir -p /app/build /app/data/processed/api_runs
 
+# Compile the C++ shallow-water solver
 RUN g++ -std=c++17 -O3 -fopenmp \
     -I /app/simulation/core \
     /app/simulation/core/main_cli.cpp \
