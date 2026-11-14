@@ -1,0 +1,32 @@
+# Environments & Dependencies
+.venv/
+venv/
+__pycache__/
+*.pyc
+node_modules/
+dist/
+
+# C++ Build Artifacts
+build/
+*.exe
+*.out
+*.o
+*.so
+*.dll
+
+# Large Data & Model Checkpoints
+data/raw/*
+data/processed/*
+!data/**/.gitkeep
+*.tif
+*.tiff
+*.npz
+*.npy
+*.pt
+*.pth
+*.onnx
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
