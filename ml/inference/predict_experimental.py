@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import torch
@@ -42,7 +42,7 @@ class SurrogateRolloutEngine:
         dem: np.ndarray,
         building_mask: np.ndarray,
         roughness: np.ndarray,
-        rain_mmhr: float,
+        rain_mmhr: Union[float, np.ndarray, List[np.ndarray]],
         steps: int = 30,
         dx_m: float = 10.0,
         dy_m: float = 10.0,
@@ -50,6 +50,8 @@ class SurrogateRolloutEngine:
         u_init: np.ndarray = None,
         v_init: np.ndarray = None,
         h_dry: float = 1e-4,
+        project_mass: bool = False,
+        projection_mode: str = "flux",
     ) -> Dict:
         """
         Executes multi-step autoregressive rollout with physical constraints and volume diagnostics.
@@ -67,14 +69,22 @@ class SurrogateRolloutEngine:
             u = np.zeros_like(dem)
             v = np.zeros_like(dem)
 
-        rain = np.full_like(dem, rain_mmhr / 3_600_000.0, dtype=np.float32)
         cell_area = dx_m * dy_m
-        fluid_cells = float((mask < 0.5).sum())
+        fluid_mask = (mask < 0.5)
+
+        # Support float (uniform), 2D array (spatial static), or list of 2D arrays (dynamic spatial)
+        if isinstance(rain_mmhr, (list, tuple)):
+            rain_seq = [np.ascontiguousarray(r, dtype=np.float32) for r in rain_mmhr]
+        elif isinstance(rain_mmhr, np.ndarray) and rain_mmhr.ndim == 2:
+            rain_seq = [np.ascontiguousarray(rain_mmhr, dtype=np.float32)] * steps
+        else:
+            rain_val = float(rain_mmhr) / 3_600_000.0  # m/s
+            rain_seq = [np.full_like(dem, rain_val, dtype=np.float32)] * steps
 
         h_frames = [h.copy()]
         u_frames = [u.copy()]
         v_frames = [v.copy()]
-        volumes = [float((h * cell_area * (mask < 0.5)).sum())]
+        volumes = [float((h * cell_area * fluid_mask).sum())]
         expected_volumes = [volumes[0]]
 
         step_latencies_ms = []
@@ -84,6 +94,7 @@ class SurrogateRolloutEngine:
             for s in range(1, steps + 1):
                 t_step_0 = time.perf_counter()
 
+                rain = rain_seq[s - 1]
                 x_raw = np.stack(static_stack + [h, u, v, rain], axis=0)
                 x_norm = (x_raw - self.xm) / self.xs
                 tensor = torch.from_numpy(x_norm[None].copy()).to(self.device)
@@ -98,6 +109,7 @@ class SurrogateRolloutEngine:
 
                 # Dry cell handling: velocities in dry cells are strictly zero
                 dry_mask = (h <= h_dry)
+                h[dry_mask] = 0.0
                 u[dry_mask] = 0.0
                 v[dry_mask] = 0.0
 
@@ -107,14 +119,33 @@ class SurrogateRolloutEngine:
                 u[bld] = 0.0
                 v[bld] = 0.0
 
+                # Mass conservation tracking and optional projection
+                vol_rain_step = float((rain * 60.0 * cell_area * fluid_mask).sum())
+
+                if project_mass:
+                    if projection_mode == "flux":
+                        # Integrate outward perimeter flux to account for open domain boundaries
+                        out_w = np.maximum(0.0, -u[:, 0]) * h[:, 0] * dy_m * 60.0
+                        out_e = np.maximum(0.0, u[:, -1]) * h[:, -1] * dy_m * 60.0
+                        out_n = np.maximum(0.0, -v[0, :]) * h[0, :] * dx_m * 60.0
+                        out_s = np.maximum(0.0, v[-1, :]) * h[-1, :] * dx_m * 60.0
+                        step_outflow = float(out_w.sum() + out_e.sum() + out_n.sum() + out_s.sum())
+                        vol_expected = expected_volumes[-1] + vol_rain_step - step_outflow
+                    else:
+                        vol_expected = expected_volumes[-1] + vol_rain_step
+
+                    vol_actual_raw = float((h * cell_area * fluid_mask).sum())
+                    if vol_actual_raw > 1e-4:
+                        scale_factor = vol_expected / vol_actual_raw
+                        # Limit scaling to physically reasonable range [0.5, 2.0]
+                        scale_factor = np.clip(scale_factor, 0.5, 2.0)
+                        h = (h * scale_factor).astype(np.float32)
+                else:
+                    vol_expected = expected_volumes[-1] + vol_rain_step
+
                 step_latencies_ms.append((time.perf_counter() - t_step_0) * 1000.0)
 
-                # Track volumes
-                vol_actual = float((h * cell_area * (mask < 0.5)).sum())
-                # Rain volume added in 60s
-                vol_rain_step = float((rain_mmhr / 3_600_000.0) * 60.0 * cell_area * fluid_cells)
-                vol_expected = expected_volumes[-1] + vol_rain_step
-
+                vol_actual = float((h * cell_area * fluid_mask).sum())
                 volumes.append(vol_actual)
                 expected_volumes.append(vol_expected)
 

@@ -2,11 +2,20 @@ import glob
 import json
 import os
 from pathlib import Path
-import matplotlib.pyplot as plt
 import numpy as np
+
+try:
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except Exception:
+    plt = None
+    HAS_MATPLOTLIB = False
 
 
 def plot_training_curves(log_dir: str = "ml/training/logs", out_dir: str = "data/processed/evaluation_plots"):
+    if not HAS_MATPLOTLIB:
+        print("[Visualization] Matplotlib not available; skipping training curves plot.")
+        return
     os.makedirs(out_dir, exist_ok=True)
     log_files = sorted(glob.glob(f"{log_dir}/exp_*.json") + glob.glob(f"{log_dir}/baseline_*.json"))
     if not log_files:
@@ -39,8 +48,11 @@ def plot_rollout_horizon_errors(
     results_dict: dict,
     out_dir: str = "data/processed/evaluation_plots",
 ):
+    if not HAS_MATPLOTLIB:
+        print("[Visualization] Matplotlib not available; skipping horizon errors plot.")
+        return
     os.makedirs(out_dir, exist_ok=True)
-    horizons = [1, 5, 10, 20, 30]
+    horizons = [1, 2, 5, 10, 15, 20, 25, 30]
 
     plt.figure(figsize=(12, 5))
 
@@ -83,6 +95,9 @@ def plot_spatial_comparison(
     title_suffix: str = "30-min",
     out_dir: str = "data/processed/evaluation_plots",
 ):
+    if not HAS_MATPLOTLIB:
+        print("[Visualization] Matplotlib not available; skipping spatial comparison plot.")
+        return
     os.makedirs(out_dir, exist_ok=True)
     fig, axes = plt.subplots(1, 4, figsize=(20, 5))
 
@@ -124,6 +139,9 @@ def plot_volume_conservation(
     solver_volumes: list,
     out_dir: str = "data/processed/evaluation_plots",
 ):
+    if not HAS_MATPLOTLIB:
+        print("[Visualization] Matplotlib not available; skipping volume conservation plot.")
+        return
     os.makedirs(out_dir, exist_ok=True)
     times = [i * 1.0 for i in range(len(actual_volumes))]
 

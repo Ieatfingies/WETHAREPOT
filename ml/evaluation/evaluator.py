@@ -33,10 +33,20 @@ def compute_metrics_2d(
     pv = pred_v[fluid]
     tv = true_v[fluid]
 
-    # Depth errors
+    # Depth errors (full domain)
     dh = ph - th
     mae_h = float(np.mean(np.abs(dh)))
     rmse_h = float(np.sqrt(np.mean(dh ** 2)))
+    signed_error_h = float(np.mean(dh))
+
+    # Wet-cell only depth errors (cells where gt >= threshold or pred >= threshold)
+    wet_mask = (th >= flood_threshold) | (ph >= flood_threshold)
+    if np.any(wet_mask):
+        mae_h_wet = float(np.mean(np.abs(dh[wet_mask])))
+        rmse_h_wet = float(np.sqrt(np.mean(dh[wet_mask] ** 2)))
+    else:
+        mae_h_wet = 0.0
+        rmse_h_wet = 0.0
 
     # R2 for depth
     ss_tot = float(np.sum((th - np.mean(th)) ** 2))
@@ -50,7 +60,7 @@ def compute_metrics_2d(
     speed_t = np.sqrt(tu ** 2 + tv ** 2)
     rmse_speed = float(np.sqrt(np.mean((speed_p - speed_t) ** 2)))
 
-    # Flood Extent (IoU, Precision, Recall at flood_threshold)
+    # Flood Extent (IoU, Precision, Recall, F1 at flood_threshold)
     pred_wet = (ph >= flood_threshold)
     true_wet = (th >= flood_threshold)
 
@@ -59,9 +69,10 @@ def compute_metrics_2d(
     fn = float(np.sum((~pred_wet) & true_wet))
 
     denom_iou = tp + fp + fn
-    iou = float(tp / denom_iou) if denom_iou > 0 else 1.0
-    precision = float(tp / (tp + fp)) if (tp + fp) > 0 else 1.0
-    recall = float(tp / (tp + fn)) if (tp + fn) > 0 else 1.0
+    iou = float(tp / denom_iou) if denom_iou > 0 else 0.0
+    precision = float(tp / (tp + fp)) if (tp + fp) > 0 else 0.0
+    recall = float(tp / (tp + fn)) if (tp + fn) > 0 else 0.0
+    f1 = float(2.0 * precision * recall / (precision + recall + 1e-8)) if (precision + recall) > 0 else 0.0
 
     # Volume error
     v_pred = float(np.sum(ph) * cell_area)
@@ -78,6 +89,11 @@ def compute_metrics_2d(
     return {
         "mae_h": mae_h,
         "rmse_h": rmse_h,
+        "mae_h_full": mae_h,
+        "rmse_h_full": rmse_h,
+        "mae_h_wet": mae_h_wet,
+        "rmse_h_wet": rmse_h_wet,
+        "signed_depth_error": signed_error_h,
         "r2_h": r2_h,
         "mae_u": mae_u,
         "mae_v": mae_v,
@@ -85,6 +101,7 @@ def compute_metrics_2d(
         "iou": iou,
         "precision": precision,
         "recall": recall,
+        "f1": f1,
         "v_pred_m3": v_pred,
         "v_true_m3": v_true,
         "volume_error_m3": v_err,
@@ -98,7 +115,9 @@ def compute_metrics_2d(
 def evaluate_trajectory_rollout(
     engine: SurrogateRolloutEngine,
     frames: List[Dict],
-    horizons: List[int] = [1, 5, 10, 20, 30],
+    horizons: List[int] = [1, 2, 5, 10, 15, 20, 25, 30],
+    project_mass: bool = False,
+    projection_mode: str = "flux",
 ) -> Dict:
     """
     Evaluates multi-step autoregressive rollout against ground truth simulation trajectory.
@@ -110,6 +129,9 @@ def evaluate_trajectory_rollout(
     rain = float(f0["rain_mmhr"])
     region = str(f0["region"])
 
+    # Extract 2D rainfall sequence across all frames (supports both spatial and uniform)
+    rain_seq = [fr["x"][6] for fr in frames]
+
     # Initial state
     h_init = f0["x"][3]
     u_init = f0["x"][4]
@@ -120,11 +142,13 @@ def evaluate_trajectory_rollout(
         dem=dem,
         building_mask=mask,
         roughness=rough,
-        rain_mmhr=rain,
+        rain_mmhr=rain_seq,
         steps=total_steps,
         h_init=h_init,
         u_init=u_init,
         v_init=v_init,
+        project_mass=project_mass,
+        projection_mode=projection_mode,
     )
 
     h_preds = rollout_res["h_frames"]
@@ -163,7 +187,7 @@ def evaluate_trajectory_rollout(
 
 def evaluate_persistence_baseline(
     frames: List[Dict],
-    horizons: List[int] = [1, 5, 10, 20, 30],
+    horizons: List[int] = [1, 2, 5, 10, 15, 20, 25, 30],
 ) -> Dict:
     """
     Zero-change persistence baseline: assumes state never changes from initial condition.
@@ -189,6 +213,56 @@ def evaluate_persistence_baseline(
             pred_h=h_persist, true_h=gt_h,
             pred_u=u_persist, true_u=gt_u,
             pred_v=v_persist, true_v=gt_v,
+            mask=mask,
+        )
+        horizon_metrics[f"step_{h_step}"] = m
+
+    return horizon_metrics
+
+
+def evaluate_rainfall_accumulation_baseline(
+    frames: List[Dict],
+    horizons: List[int] = [1, 2, 5, 10, 15, 20, 25, 30],
+    dt_frame_s: float = 60.0,
+) -> Dict:
+    """
+    Hydrological rainfall-accumulation baseline:
+    Accumulates uniform or spatial rainfall on fluid cells without overland routing.
+    h_pred(t) = h(0) + max(0, R - infiltration) * t
+    Building cells remain dry (h = 0).
+    Velocities remain zero (u = 0, v = 0).
+    """
+    f0 = frames[0]
+    mask = f0["x"][1]
+    h_init = f0["x"][3]
+    rain_mmhr = float(f0.get("rain_mmhr", 0.0))
+    rain_rate_ms = rain_mmhr / 3600000.0  # m/s
+
+    # Zero velocities
+    u_pred = np.zeros_like(h_init)
+    v_pred = np.zeros_like(h_init)
+
+    horizon_metrics = {}
+    total_steps = len(frames)
+
+    for h_step in horizons:
+        if h_step > total_steps:
+            continue
+        gt_frame = frames[h_step - 1]
+        gt_h = gt_frame["y"][0]
+        gt_u = gt_frame["y"][1]
+        gt_v = gt_frame["y"][2]
+
+        elapsed_time_s = h_step * dt_frame_s
+        # Accumulate actual rainfall depth up to horizon step
+        accum_rain_m = np.sum([fr["x"][6] * dt_frame_s for fr in frames[:h_step]], axis=0)
+        h_accum = np.maximum(0.0, h_init + accum_rain_m)
+        h_accum = np.where(mask > 0.5, 0.0, h_accum)
+
+        m = compute_metrics_2d(
+            pred_h=h_accum, true_h=gt_h,
+            pred_u=u_pred, true_u=gt_u,
+            pred_v=v_pred, true_v=gt_v,
             mask=mask,
         )
         horizon_metrics[f"step_{h_step}"] = m

@@ -44,6 +44,10 @@ public:
     void advanceTo(FloodState& state, double target_time_s);
 
     void setRainfallRate(float rate_ms) { cfg_.hydro.rainfall_rate_ms = rate_ms; }
+    void setRainfallGrid(const std::vector<float>& grid) { rain_grid_ms_ = grid; }
+    void clearRainfallGrid() { rain_grid_ms_.clear(); }
+    bool hasRainfallGrid() const { return !rain_grid_ms_.empty(); }
+    const std::vector<float>& rainfallGrid() const { return rain_grid_ms_; }
     void setBoundaryCondition(BoundaryCondition bc) { boundary_cond_ = bc; }
     BoundaryCondition boundaryCondition() const { return boundary_cond_; }
     const SimulationConfig& config() const { return cfg_; }
@@ -57,6 +61,7 @@ private:
     std::vector<float> h_next_;
     std::vector<float> hu_next_;
     std::vector<float> hv_next_;
+    std::vector<float> rain_grid_ms_;
     MassBalanceReport mass_balance_;
     bool mass_balance_initialized_ = false;
 

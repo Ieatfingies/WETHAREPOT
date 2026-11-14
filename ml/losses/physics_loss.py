@@ -5,8 +5,8 @@ import torch.nn.functional as F
 
 class CompositePhysicsLoss(nn.Module):
     """
-    Composite Physics-Informed Objective for 2D Shallow Water Equations:
-        L = λd Ldata + λh Ldepth + λm Lmass + λp Lmomentum + λb Lboundary
+    Physically Dimensioned Composite Objective for 2D Shallow Water Equations:
+        L = λd Ldata + λdry Ldry + λh Ldepth + λm Lmass + λv Lvol + λp Lmomentum + λb Lboundary
     """
     def __init__(
         self,
@@ -16,11 +16,13 @@ class CompositePhysicsLoss(nn.Module):
         gravity: float = 9.81,
         h_dry: float = 1e-4,
         lambda_data: float = 1.0,
-        lambda_depth: float = 0.5,
-        lambda_mass: float = 0.05,
-        lambda_momentum: float = 0.01,
-        lambda_boundary: float = 0.1,
-        wet_weight: float = 3.0,
+        lambda_dry: float = 0.5,
+        lambda_depth: float = 1.0,
+        lambda_mass: float = 0.5,
+        lambda_vol: float = 0.2,
+        lambda_momentum: float = 0.005,
+        lambda_boundary: float = 0.5,
+        wet_weight: float = 2.0,
     ):
         super().__init__()
         self.dx = dx_m
@@ -30,8 +32,10 @@ class CompositePhysicsLoss(nn.Module):
         self.h_dry = h_dry
 
         self.lambda_data = lambda_data
+        self.lambda_dry = lambda_dry
         self.lambda_depth = lambda_depth
         self.lambda_mass = lambda_mass
+        self.lambda_vol = lambda_vol
         self.lambda_momentum = lambda_momentum
         self.lambda_boundary = lambda_boundary
         self.wet_weight = wet_weight
@@ -48,35 +52,23 @@ class CompositePhysicsLoss(nn.Module):
         Args:
             pred_norm: Normalized model prediction [B, 3, H, W]
             target_norm: Normalized ground truth [B, 3, H, W]
-            x_raw: Physical input tensor [B, 7, H, W]:
-                   0: DEM (z)
-                   1: Building mask
-                   2: Manning roughness
-                   3: h_prev
-                   4: u_prev
-                   5: v_prev
-                   6: rain_ms
+            x_raw: Physical input tensor [B, 7, H, W]
             ym: Target channel means [3]
             ys: Target channel standard deviations [3]
         """
         B, _, H, W = pred_norm.shape
 
-        # ----------------------------------------------------
-        # 1. DATA LOSS with wet-cell weighting
-        # ----------------------------------------------------
+        # Denormalize target depth for calibrated graduated wet-cell weighting
+        target_h_phys = target_norm[:, 0] * ys[0] + ym[0]
+        w_shallow = (target_h_phys > 0.02).float() * 0.5
+        w_flood = (target_h_phys > 0.05).float() * (self.wet_weight - 1.0)
+        weights = 1.0 + w_shallow + w_flood
+
+        # 1. DATA LOSS (Smooth L1 weighted)
         err = F.smooth_l1_loss(pred_norm, target_norm, reduction="none")
+        loss_data = (err * weights.unsqueeze(1)).mean()
 
-        # Wet-cell mask from physical target depth
-        target_h_phys = target_norm[:, 0:1] * ys[0] + ym[0]
-        wet_mask = (target_h_phys > 0.05).float()
-        weights = 1.0 + (self.wet_weight - 1.0) * wet_mask
-
-        # Data loss weighted
-        loss_data = (err * weights).mean()
-
-        # ----------------------------------------------------
-        # Denormalize predictions to physical units
-        # ----------------------------------------------------
+        # Denormalize predictions to physical units (meters and m/s)
         pred_h = pred_norm[:, 0] * ys[0] + ym[0]
         pred_u = pred_norm[:, 1] * ys[1] + ym[1]
         pred_v = pred_norm[:, 2] * ys[2] + ym[2]
@@ -91,52 +83,54 @@ class CompositePhysicsLoss(nn.Module):
 
         fluid_mask = (bld_mask < 0.5).float()
 
-        # ----------------------------------------------------
-        # 2. DEPTH NON-NEGATIVITY LOSS
-        # ----------------------------------------------------
+        # 2. DEPTH NON-NEGATIVITY & DRY CELL SUPPRESSION
         loss_depth = torch.relu(-pred_h).pow(2).mean()
 
-        # Clamped positive depth for subsequent PDE terms
         h_pos = torch.relu(pred_h)
+        # Penalize positive depth on known dry cells
+        dry_target_mask = (target_h_phys <= self.h_dry).float() * fluid_mask
+        loss_dry = (torch.relu(h_pos - self.h_dry).pow(2) * dry_target_mask).mean()
+
+        # Heavily penalize spurious background water on unrained and previously dry cells
+        unrained_mask = (rain_ms < 1e-7).float() * (h_prev <= self.h_dry).float() * dry_target_mask
+        loss_unrained = (torch.relu(h_pos - self.h_dry).pow(2) * unrained_mask).mean()
+        loss_dry = loss_dry + 2.0 * loss_unrained
+
         wet_cells = (h_pos > self.h_dry).float() * fluid_mask
 
-        # ----------------------------------------------------
-        # 3. DISCRETE CONTINUITY (MASS RESIDUAL) LOSS
-        #    dh/dt + d(hu)/dx + d(hv)/dy = R
-        # ----------------------------------------------------
-        # Rate of depth change
-        dh_dt = (h_pos - h_prev) / self.dt
-
-        # Discharges
+        # 3. DISCRETE CONTINUITY (MASS RESIDUAL IN METERS)
+        # dh + dt * div(q) - R * dt = 0
+        dh = h_pos - h_prev
         qx = h_pos * pred_u
         qy = h_pos * pred_v
 
-        # Spatial flux gradients using central differences (interior cells)
         dqx_dx = torch.zeros_like(qx)
         dqy_dy = torch.zeros_like(qy)
 
         dqx_dx[:, :, 1:-1] = (qx[:, :, 2:] - qx[:, :, :-2]) / (2.0 * self.dx)
         dqy_dy[:, 1:-1, :] = (qy[:, 2:, :] - qy[:, :-2, :]) / (2.0 * self.dy)
 
-        mass_res = (dh_dt + dqx_dx + dqy_dy - rain_ms) * fluid_mask
-        loss_mass = mass_res.pow(2).mean()
+        rain_depth = rain_ms * self.dt  # in meters
+        mass_res_m = (dh + self.dt * (dqx_dx + dqy_dy) - rain_depth) * fluid_mask
+        loss_mass = mass_res_m.pow(2).mean()
 
-        # ----------------------------------------------------
-        # 4. 2D SHALLOW-WATER MOMENTUM RESIDUAL LOSS
-        #    d(hu)/dt + d(hu^2)/dx + d(huv)/dy + gh * d(h+z)/dx + friction = 0
-        # ----------------------------------------------------
-        # Temporal momentum derivatives
+        # 4. GLOBAL VOLUME CONSERVATION PENALTY
+        cell_area = self.dx * self.dy
+        pred_delta_vol = (dh * fluid_mask).sum(dim=(1, 2)) * cell_area
+        exp_delta_vol = (rain_depth * fluid_mask).sum(dim=(1, 2)) * cell_area
+        vol_err = (pred_delta_vol - exp_delta_vol) / torch.clamp(exp_delta_vol, min=100.0)
+        loss_vol = vol_err.pow(2).mean()
+
+        # 5. 2D MOMENTUM RESIDUALS (ON WET FLUID CELLS)
         dhu_dt = (h_pos * pred_u - h_prev * u_prev) / self.dt
         dhv_dt = (h_pos * pred_v - h_prev * v_prev) / self.dt
 
-        # Water surface elevation eta = h + z
         eta = h_pos + dem
         deta_dx = torch.zeros_like(eta)
         deta_dy = torch.zeros_like(eta)
         deta_dx[:, :, 1:-1] = (eta[:, :, 2:] - eta[:, :, :-2]) / (2.0 * self.dx)
         deta_dy[:, 1:-1, :] = (eta[:, 2:, :] - eta[:, :-2, :]) / (2.0 * self.dy)
 
-        # Advective fluxes
         hu2 = h_pos * pred_u * pred_u
         hv2 = h_pos * pred_v * pred_v
         huv = h_pos * pred_u * pred_v
@@ -151,11 +145,10 @@ class CompositePhysicsLoss(nn.Module):
         dhuv_dx[:, :, 1:-1] = (huv[:, :, 2:] - huv[:, :, :-2]) / (2.0 * self.dx)
         dhv2_dy[:, 1:-1, :] = (hv2[:, 2:, :] - hv2[:, :-2, :]) / (2.0 * self.dy)
 
-        # Manning friction
         speed = torch.sqrt(pred_u * pred_u + pred_v * pred_v + 1e-6)
         h_eff = torch.clamp(h_pos, min=0.01)
         friction_coeff = self.g * (roughness ** 2) * speed / (h_eff ** (4.0 / 3.0))
-        friction_coeff = torch.clamp(friction_coeff, max=100.0)
+        friction_coeff = torch.clamp(friction_coeff, max=50.0)
 
         frict_u = friction_coeff * pred_u
         frict_v = friction_coeff * pred_v
@@ -163,28 +156,24 @@ class CompositePhysicsLoss(nn.Module):
         mom_u_res = (dhu_dt + dhu2_dx + dhuv_dy + self.g * h_pos * deta_dx + frict_u) * wet_cells
         mom_v_res = (dhv_dt + dhuv_dx + dhv2_dy + self.g * h_pos * deta_dy + frict_v) * wet_cells
 
-        # Normalized momentum loss
-        loss_mom = (mom_u_res.pow(2) + mom_v_res.pow(2)).mean()
+        # Normalize momentum residual scale to prevent domination
+        loss_mom = (mom_u_res.pow(2) + mom_v_res.pow(2)).mean() / 100.0
 
-        # ----------------------------------------------------
-        # 5. BOUNDARY CONSTRAINT LOSS
-        # ----------------------------------------------------
-        # Water and velocity inside buildings must be zero
-        bld_violation = (h_pos.pow(2) + pred_u.pow(2) + pred_v.pow(2)) * bld_mask
-        loss_bld = bld_violation.mean()
-
-        # Domain boundary wall normal velocity constraint
+        # 6. BOUNDARY CONSTRAINTS
+        # Zero water and velocity in buildings
+        loss_bld = ((h_pos.pow(2) + pred_u.pow(2) + pred_v.pow(2)) * bld_mask).mean()
+        # Perimeter normal velocity
         wall_u = pred_u[:, :, 0].pow(2).mean() + pred_u[:, :, -1].pow(2).mean()
         wall_v = pred_v[:, 0, :].pow(2).mean() + pred_v[:, -1, :].pow(2).mean()
-        loss_bnd = loss_bld + 0.5 * (wall_u + wall_v)
+        loss_bnd = loss_bld + 0.1 * (wall_u + wall_v)
 
-        # ----------------------------------------------------
-        # TOTAL COMPOSITE LOSS
-        # ----------------------------------------------------
+        # TOTAL COMPOSITE OBJECTIVE
         total_loss = (
             self.lambda_data * loss_data
+            + self.lambda_dry * loss_dry
             + self.lambda_depth * loss_depth
             + self.lambda_mass * loss_mass
+            + self.lambda_vol * loss_vol
             + self.lambda_momentum * loss_mom
             + self.lambda_boundary * loss_bnd
         )
@@ -192,8 +181,10 @@ class CompositePhysicsLoss(nn.Module):
         metrics = {
             "loss_total": total_loss.item(),
             "loss_data": loss_data.item(),
+            "loss_dry": loss_dry.item(),
             "loss_depth": loss_depth.item(),
             "loss_mass": loss_mass.item(),
+            "loss_vol": loss_vol.item(),
             "loss_momentum": loss_mom.item(),
             "loss_boundary": loss_bnd.item(),
         }

@@ -97,9 +97,29 @@ int main(int argc, char** argv) {
     ExperimentalSolver solver(cfg, bc);
     solver.initMassBalance(state);
 
+    // Check for static spatial rainfall grid
+    std::vector<float> rain_grid(N * N, 0.0f);
+    bool has_static_rain = false;
+    if (fs::exists(in_dir + "/rain_grid.bin")) {
+        if (loadBinary(in_dir + "/rain_grid.bin", rain_grid)) {
+            solver.setRainfallGrid(rain_grid);
+            has_static_rain = true;
+            std::cout << "[SWE-Exp] Loaded static spatial rainfall grid from " << in_dir << "/rain_grid.bin\n";
+        }
+    }
+
     auto t0 = std::chrono::high_resolution_clock::now();
     int frame = 0;
     for (double t = save_interval_s; t <= duration_s + 1e-5; t += save_interval_s) {
+        // Check for frame-by-frame dynamic spatial rainfall grid
+        std::ostringstream rain_oss;
+        rain_oss << in_dir << "/rain_grid_" << std::setw(4) << std::setfill('0') << frame << ".bin";
+        if (fs::exists(rain_oss.str())) {
+            if (loadBinary(rain_oss.str(), rain_grid)) {
+                solver.setRainfallGrid(rain_grid);
+            }
+        }
+
         solver.advanceTo(state, t);
         std::ostringstream oss;
         oss << out_dir << "/frame_" << std::setw(4) << std::setfill('0') << frame++;

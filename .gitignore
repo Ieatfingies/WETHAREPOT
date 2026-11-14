@@ -18,13 +18,20 @@ build/
 data/raw/*
 data/processed/*
 !data/**/.gitkeep
+!data/processed/*_256.npz
+!data/processed/*_256.json
 *.tif
 *.tiff
-*.npz
 *.npy
 *.pt
-*.pth
 *.onnx
+*.zip
+
+# Preserve Model Weights
+*.pth
+!ml/weights/unet_flood.pth
+!ml/weights/wetharepot_surrogate_final.pth
+!ml/weights/exp_clean_multiscale_pinn_v2.pth
 
 # OS & IDE
 .DS_Store

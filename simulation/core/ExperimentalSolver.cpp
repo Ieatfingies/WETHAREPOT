@@ -116,7 +116,9 @@ double ExperimentalSolver::stepAdaptive(FloodState& state, double max_step_s) {
         dt = static_cast<float>(max_step_s);
     }
 
-    const float net_rain = cfg_.hydro.rainfall_rate_ms - cfg_.hydro.infiltration_rate_ms;
+    const float uniform_net_rain = cfg_.hydro.rainfall_rate_ms - cfg_.hydro.infiltration_rate_ms;
+    const bool use_grid_rain = (rain_grid_ms_.size() == static_cast<size_t>(W * H));
+    const float infil_rate = cfg_.hydro.infiltration_rate_ms;
 
     double step_boundary_outflow_m3 = 0.0;
     double step_boundary_inflow_m3 = 0.0;
@@ -134,7 +136,8 @@ double ExperimentalSolver::stepAdaptive(FloodState& state, double max_step_s) {
                 continue;
             }
 
-            step_rain_volume_m3 += static_cast<double>(net_rain) * static_cast<double>(dt) * static_cast<double>(cell_area);
+            const float cell_net_rain = use_grid_rain ? (rain_grid_ms_[c] - infil_rate) : uniform_net_rain;
+            step_rain_volume_m3 += static_cast<double>(cell_net_rain) * static_cast<double>(dt) * static_cast<double>(cell_area);
 
             const float hC = state.h[c];
             const float uC = state.u[c];
@@ -226,7 +229,7 @@ double ExperimentalSolver::stepAdaptive(FloodState& state, double max_step_s) {
             Flux fN = computeInterfaceFlux(x, y - 1,  0.0f, -1.0f, dx, (y == 0),     src_N);
             Flux fS = computeInterfaceFlux(x, y + 1,  0.0f,  1.0f, dx, (y == H - 1), src_S);
 
-            float h_new = hC - (dt / dx) * (fE.f_h + fW.f_h) - (dt / dy) * (fN.f_h + fS.f_h) + dt * net_rain;
+            float h_new = hC - (dt / dx) * (fE.f_h + fW.f_h) - (dt / dy) * (fN.f_h + fS.f_h) + dt * cell_net_rain;
             h_new = std::max(0.0f, h_new);
 
             if (h_new <= h_dry) {
