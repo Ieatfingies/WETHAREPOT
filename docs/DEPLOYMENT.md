@@ -59,13 +59,38 @@ docker compose up --build
 
 ## 3. Cloud Production Deployment
 
-### Frontend (Vercel / Cloudflare Pages)
-The frontend is pre-configured with `frontend/vercel.json` for SPA routing and asset caching.
-1. Connect the `frontend/` directory to Vercel or Cloudflare Pages.
-2. Build command: `bun run build` (or `npm run build`).
+### Cloudflare Pages & Workers (Edge Hosting)
+The frontend is configured with native Cloudflare Pages / Workers deployment artifacts:
+- `wrangler.toml` at repository root and in `frontend/`
+- SPA route interception rules in `frontend/public/_routes.json`
+- Strict security and immutable asset caching headers in `frontend/public/_headers`
+
+#### Deploy with Wrangler CLI:
+```bash
+# 1. Build production static bundle
+cd frontend
+bun run build
+
+# 2. Deploy directly to Cloudflare Pages
+bunx wrangler pages deploy dist --project-name=wetharepot
+```
+
+#### Deploy via Cloudflare Dashboard (Git Integration):
+1. Connect the GitHub repository to Cloudflare Pages.
+2. Build configuration:
+   - **Framework preset**: Vite
+   - **Root directory**: `frontend`
+   - **Build command**: `bun run build`
+   - **Build output directory**: `dist`
+3. Environment variables:
+   - `VITE_API_URL`: Your hosted backend URL (e.g. `https://api.wetharepot.in`)
+
+### Frontend (Vercel)
+The frontend also includes `frontend/vercel.json` for SPA routing on Vercel:
+1. Connect the `frontend/` directory to Vercel.
+2. Build command: `bun run build`.
 3. Output directory: `dist`.
-4. Set environment variable:
-   - `VITE_API_URL`: `https://api.yourdomain.com` (your hosted backend URL).
+4. Environment variable: `VITE_API_URL`.
 
 ### Backend (Render / Railway / Fly.io / AWS EC2)
 The backend container is defined in the root `Dockerfile`.

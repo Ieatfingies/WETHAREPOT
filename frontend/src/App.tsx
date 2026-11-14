@@ -29,7 +29,6 @@ import {
   LayersIcon,
   Cube3DIcon,
   MapIcon,
-  ActivityPulseIcon,
   HistoryIcon,
 } from "./components/icons/CartographicIcons";
 import type {
@@ -305,6 +304,16 @@ export function App() {
   const activeMeta = result?.meta ?? terrainData?.meta ?? null;
   const activeFrameGrid = result?.frames_h[currentFrame] ?? null;
 
+  // Only rain when actively simulating or playing a rainy run, or when live weather reports actual rain
+  const isActivelySimulatingOrPlaying =
+    operatingMode === "simulation"
+      ? loading || (playing && (result?.rain_mmhr ?? 0) > 0)
+      : (liveWeather?.current?.precipitation_mmhr ?? 0) > 0;
+
+  const currentActiveRainMmHr = isActivelySimulatingOrPlaying
+    ? (operatingMode === "simulation" ? rainMmHr : (liveWeather?.current?.precipitation_mmhr ?? 0))
+    : 0;
+
   // Route Views Dispatcher
   if (currentPath === "/methodology") {
     return <MethodologyPage onBackToAtlas={() => navigate("/")} />;
@@ -330,33 +339,6 @@ export function App() {
         <div className="mobile-brand">
           <div className="mobile-mark">W</div>
           <span className="mobile-name">WETHAREPOT</span>
-        </div>
-
-        {/* Global Operating Mode Switcher */}
-        <div className="operating-mode-toggle" role="group" aria-label="Digital Twin Operating Mode">
-          <button
-            type="button"
-            className={`mode-tab-btn ${operatingMode === "simulation" ? "is-active" : ""}`}
-            onClick={() => setOperatingMode("simulation")}
-            title="Mode A: Simulation Lab (C++ Shallow Water Equations Solver)"
-          >
-            <Cube3DIcon width={13} height={13} />
-            <span>SIMULATION LAB</span>
-          </button>
-
-          <button
-            type="button"
-            className={`mode-tab-btn ${operatingMode === "live" ? "is-active" : ""}`}
-            onClick={() => {
-              setOperatingMode("live");
-              loadLiveData();
-            }}
-            title="Mode B: Live City Monitor (Bengaluru Real-Time Weather & Flood Risk)"
-          >
-            <ActivityPulseIcon width={13} height={13} />
-            <span>LIVE CITY MONITOR</span>
-            <span className="live-dot-pulse" />
-          </button>
         </div>
 
         <div className="mobile-header-actions">
@@ -426,6 +408,8 @@ export function App() {
             onOpenHistory={() => setHistoryOpen(true)}
             onRunSimulation={handleRunSimulation}
             onNavigate={navigate}
+            operatingMode={operatingMode}
+            onSelectOperatingMode={setOperatingMode}
           />
         ) : (
           <LiveCitySidebar
@@ -438,6 +422,8 @@ export function App() {
             onAcknowledgeAlert={handleAcknowledgeAlert}
             onRefresh={loadLiveData}
             isLoading={liveLoading}
+            operatingMode={operatingMode}
+            onSelectOperatingMode={setOperatingMode}
           />
         )}
       </div>
@@ -496,7 +482,7 @@ export function App() {
             meta={activeMeta}
             regionName={activeRegion?.name}
             theme={theme}
-            rainfallMmHr={operatingMode === "live" ? (liveWeather?.current?.precipitation_mmhr ?? 0) : rainMmHr}
+            rainfallMmHr={currentActiveRainMmHr}
             timeOfDayHour={timeTravelHour}
             historicalDate={timeTravelDate}
             isHistorical={isHistoricalTime}

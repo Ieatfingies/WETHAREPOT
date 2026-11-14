@@ -110,9 +110,9 @@ export function TimeTravelController({
               <span>HISTORICAL REPLAY</span>
             </div>
           ) : (
-            <div className="badge-live" title="Synchronized with real Bengaluru time">
+            <div className="badge-live" title="Synchronized with real Bengaluru time — cannot be paused">
               <span className="indicator-dot green-pulse" />
-              <span>LIVE SOLAR CLOCK</span>
+              <span>LIVE • STREAMING REAL-TIME</span>
             </div>
           )}
         </div>
@@ -126,7 +126,7 @@ export function TimeTravelController({
             value={dateInputStr}
             onChange={handleDateChange}
             aria-label="Historical Date"
-            title="Select date for solar & weather re-play"
+            title="Select date for historical solar & weather re-play"
           />
         </div>
 
@@ -136,7 +136,8 @@ export function TimeTravelController({
             type="button"
             className="time-action-btn"
             onClick={() => handleStep(-15)}
-            title="Step Back 15 Minutes"
+            disabled={!isHistorical}
+            title={isHistorical ? "Step Back 15 Minutes" : "Live stream cannot be paused or stepped. Pick a date/time to replay."}
             aria-label="Step Back 15 Minutes"
           >
             <StepBackwardIcon width={13} height={13} />
@@ -144,10 +145,19 @@ export function TimeTravelController({
 
           <button
             type="button"
-            className={`time-action-btn primary-action ${isPlaying ? "is-playing" : ""}`}
-            onClick={() => setIsPlaying(!isPlaying)}
-            title={isPlaying ? "Pause Day/Night Loop" : "Play Day/Night Solar Progression"}
-            aria-label={isPlaying ? "Pause" : "Play"}
+            className={`time-action-btn primary-action ${isPlaying ? "is-playing" : ""} ${!isHistorical ? "is-locked" : ""}`}
+            onClick={() => {
+              if (isHistorical) setIsPlaying(!isPlaying);
+            }}
+            disabled={!isHistorical}
+            title={
+              !isHistorical
+                ? "Live real-time stream cannot be paused. Select a historical time to replay or pause."
+                : isPlaying
+                ? "Pause Day/Night Loop"
+                : "Play Day/Night Solar Progression"
+            }
+            aria-label={!isHistorical ? "Live cannot be paused" : isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? (
               <PauseIcon width={14} height={14} />
@@ -160,7 +170,8 @@ export function TimeTravelController({
             type="button"
             className="time-action-btn"
             onClick={() => handleStep(15)}
-            title="Step Forward 15 Minutes"
+            disabled={!isHistorical}
+            title={isHistorical ? "Step Forward 15 Minutes" : "Live stream cannot be paused. Pick a date/time to replay."}
             aria-label="Step Forward 15 Minutes"
           >
             <StepForwardIcon width={13} height={13} />
@@ -170,7 +181,8 @@ export function TimeTravelController({
             type="button"
             className="time-speed-btn"
             onClick={() => setSpeedIndex((prev) => (prev + 1) % SPEED_MULTIPLIERS.length)}
-            title="Playback Speed Multiplier"
+            disabled={!isHistorical}
+            title="Playback Speed Multiplier (Historical Replay only)"
           >
             {SPEED_MULTIPLIERS[speedIndex]}×
           </button>

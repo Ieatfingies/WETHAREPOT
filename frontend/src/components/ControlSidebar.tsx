@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import type {
   HealthStatus,
   RegionInfo,
@@ -14,13 +14,13 @@ import {
   CpuChipIcon,
   BrainNeuralIcon,
   AlertTriangleIcon,
-  InfoIcon,
   SunIcon,
   MoonIcon,
   Cube3DIcon,
   MapIcon,
   HistoryIcon,
   BuildingIcon,
+  ActivityPulseIcon,
 } from "./icons/CartographicIcons";
 
 interface ControlSidebarProps {
@@ -46,6 +46,8 @@ interface ControlSidebarProps {
   onOpenHistory: () => void;
   onRunSimulation: () => void;
   onNavigate: (route: string) => void;
+  operatingMode?: "simulation" | "live";
+  onSelectOperatingMode?: (mode: "simulation" | "live") => void;
 }
 
 const RAIN_PRESETS = [
@@ -93,9 +95,9 @@ export function ControlSidebar({
   onOpenHistory,
   onRunSimulation,
   onNavigate,
+  operatingMode = "simulation",
+  onSelectOperatingMode,
 }: ControlSidebarProps) {
-  const [showSurrogateInfo, setShowSurrogateInfo] = useState(false);
-
   // Compute actual dynamic frame-by-frame impact metrics (Priority 3)
   const currentFrameImpact = useMemo(() => {
     if (!result || !result.frames_h[currentFrame]) return null;
@@ -174,6 +176,33 @@ export function ControlSidebar({
             </button>
           </div>
         </div>
+
+        {/* Operating Mode Selector inside Sidebar */}
+        {onSelectOperatingMode && (
+          <div className="sidebar-mode-switcher" role="tablist" aria-label="Digital Twin Operating Mode">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={operatingMode === "simulation"}
+              className={`sidebar-mode-tab ${operatingMode === "simulation" ? "is-active" : ""}`}
+              onClick={() => onSelectOperatingMode("simulation")}
+            >
+              <Cube3DIcon width={13} height={13} />
+              <span>Simulation Lab</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={operatingMode === "live"}
+              className={`sidebar-mode-tab ${operatingMode === "live" ? "is-active" : ""}`}
+              onClick={() => onSelectOperatingMode("live")}
+            >
+              <ActivityPulseIcon width={13} height={13} />
+              <span>Live City Monitor</span>
+              <span className="live-dot-pulse" />
+            </button>
+          </div>
+        )}
 
         {/* Global Nav Bar */}
         <nav className="header-nav" aria-label="Platform navigation">
@@ -398,44 +427,36 @@ export function ControlSidebar({
               </div>
             </button>
 
-            {/* Neural Surrogate Card (Visibly Unavailable / Research) */}
-            <div className="engine-card is-disabled" role="radio" aria-checked={false} aria-disabled="true">
+            {/* Neural Surrogate Card (Unlocked & Active with Multiscale ResUNet) */}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={engine === "surrogate"}
+              className={`engine-card ${engine === "surrogate" ? "is-selected" : ""}`}
+              onClick={() => onChangeEngine("surrogate")}
+              disabled={loading}
+            >
               <div className="engine-card-header">
-                <div className="engine-radio-circle disabled">
+                <div className="engine-radio-circle">
                   <span className="engine-radio-dot" />
                 </div>
                 <div className="engine-icon-wrap">
                   <BrainNeuralIcon width={18} height={18} />
                 </div>
                 <div className="engine-title-wrap">
-                  <strong className="engine-name">Neural Surrogate</strong>
-                  <span className="engine-tagline">Physics-Informed U-Net</span>
+                  <strong className="engine-name">Multiscale ResUNet Surrogate</strong>
+                  <span className="engine-tagline">Physics-Informed Deep Learning</span>
                 </div>
               </div>
               <p className="engine-description">
-                Autoregressive deep convolutional surrogate trained on solver rollouts.
-                Held offline per research protocol.
+                17.2× accelerated autoregressive neural rollout with SWE mass conservation & Manning bed friction.
+                Trained on Koramangala & Varthur test sets.
               </p>
               <div className="engine-status-row">
-                <span className="status-badge offline">OFFLINE / VALIDATION</span>
-                <button
-                  type="button"
-                  className="info-toggle-btn"
-                  onClick={() => setShowSurrogateInfo((v) => !v)}
-                  aria-label="Surrogate availability details"
-                  title="View research status"
-                >
-                  <InfoIcon width={13} height={13} />
-                </button>
+                <span className="status-badge available">17.2× FAST INFERENCE</span>
+                <span className="status-spec">3.29% Vol Err</span>
               </div>
-
-              {showSurrogateInfo && (
-                <div className="surrogate-notice-box">
-                  Per research protocol, U-Net weights are currently undergoing offline validation on 120 Koramangala
-                  benchmark samples. Physics solver is fully functional.
-                </div>
-              )}
-            </div>
+            </button>
           </div>
         </section>
 

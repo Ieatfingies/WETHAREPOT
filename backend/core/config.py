@@ -13,7 +13,7 @@ class SolverConfig:
 
 @dataclass(frozen=True)
 class SurrogateConfig:
-    weights_path: Path = Path("ml/weights/unet_flood.pth")
+    weights_path: Path = Path("ml/weights/wetharepot_surrogate_final.pth")
     macro_step_s: float = 60.0
 
 

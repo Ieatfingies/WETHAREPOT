@@ -14,6 +14,7 @@ import {
   HospitalIcon,
   ResetIcon,
   LayersIcon,
+  Cube3DIcon,
 } from "./icons/CartographicIcons";
 
 interface LiveCitySidebarProps {
@@ -26,6 +27,8 @@ interface LiveCitySidebarProps {
   onAcknowledgeAlert: (alertId: string, action: "acknowledged" | "escalated" | "dismissed") => void;
   onRefresh: () => void;
   isLoading: boolean;
+  operatingMode?: "simulation" | "live";
+  onSelectOperatingMode?: (mode: "simulation" | "live") => void;
 }
 
 export function LiveCitySidebar({
@@ -38,6 +41,8 @@ export function LiveCitySidebar({
   onAcknowledgeAlert,
   onRefresh,
   isLoading,
+  operatingMode = "live",
+  onSelectOperatingMode,
 }: LiveCitySidebarProps) {
   const [activeTab, setActiveTab] = useState<"weather" | "catchments" | "emergency">("weather");
 
@@ -61,6 +66,33 @@ export function LiveCitySidebar({
   return (
     <aside className="control-sidebar live-city-sidebar" aria-label="Live City Flood Monitoring Control Panel">
       <div className="sidebar-inner">
+        {/* Operating Mode Selector inside Sidebar */}
+        {onSelectOperatingMode && (
+          <div className="sidebar-mode-switcher" role="tablist" aria-label="Digital Twin Operating Mode">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={operatingMode === "simulation"}
+              className={`sidebar-mode-tab ${operatingMode === "simulation" ? "is-active" : ""}`}
+              onClick={() => onSelectOperatingMode("simulation")}
+            >
+              <Cube3DIcon width={13} height={13} />
+              <span>Simulation Lab</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={operatingMode === "live"}
+              className={`sidebar-mode-tab ${operatingMode === "live" ? "is-active" : ""}`}
+              onClick={() => onSelectOperatingMode("live")}
+            >
+              <ActivityPulseIcon width={13} height={13} />
+              <span>Live City Monitor</span>
+              <span className="live-dot-pulse" />
+            </button>
+          </div>
+        )}
+
         {/* Live City Header */}
         <div className="live-sidebar-header">
           <div className="live-header-status">
