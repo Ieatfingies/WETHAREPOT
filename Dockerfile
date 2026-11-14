@@ -2,7 +2,12 @@
 FROM python:3.12-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential g++ libgomp1 curl \
+    build-essential \
+    g++ \
+    libgomp1 \
+    libexpat1 \
+    libexpat1-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -10,8 +15,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Geospatial dependencies needed by the terrain builder
-RUN pip install --no-cache-dir geopandas osmnx rasterio pyproj
+RUN pip install --no-cache-dir \
+    geopandas \
+    osmnx \
+    rasterio \
+    pyproj
 
 COPY backend ./backend
 COPY geospatial ./geospatial
@@ -19,8 +27,9 @@ COPY simulation ./simulation
 COPY data ./data
 COPY ml ./ml
 
-RUN mkdir -p /app/build /app/data/processed/api_runs && \
-    g++ -std=c++17 -O3 -fopenmp \
+RUN mkdir -p /app/build /app/data/processed/api_runs
+
+RUN g++ -std=c++17 -O3 -fopenmp \
     -I /app/simulation/core \
     /app/simulation/core/main_cli.cpp \
     /app/simulation/core/ShallowWaterSolver.cpp \
