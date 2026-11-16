@@ -1,0 +1,20 @@
+{
+  "name": "WETHAREPOT — Bengaluru Urban Flood Digital Twin",
+  "short_name": "WETHAREPOT",
+  "description": "Real-time physics-informed 2D shallow-water flood forecasting and 3D digital twin for the Bengaluru metropolitan region.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0b0d0c",
+  "background_color": "#0b0d0c",
+  "categories": ["weather", "utilities", "navigation"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

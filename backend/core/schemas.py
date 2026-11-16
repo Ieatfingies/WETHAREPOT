@@ -32,9 +32,9 @@ class SimulationResponse(BaseModel):
     runtime_ms: float
     meta: dict[str, Any]
     analytics: FloodAnalytics
-    dem: list[list[float]]
-    building_mask: list[list[int]]
-    frames_h: list[list[list[float]]]
+    dem: Any
+    building_mask: Any
+    frames_h: Any
 
 
 class HealthResponse(BaseModel):

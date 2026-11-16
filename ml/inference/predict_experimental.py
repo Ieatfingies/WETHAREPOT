@@ -19,6 +19,12 @@ class SurrogateRolloutEngine:
         else:
             self.device = torch.device(device)
 
+        if self.device.type == "cpu":
+            try:
+                torch.set_num_threads(2)
+            except Exception:
+                pass
+
         t0 = time.perf_counter()
         self.checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
         self.load_time_ms = (time.perf_counter() - t0) * 1000.0
@@ -90,7 +96,7 @@ class SurrogateRolloutEngine:
         step_latencies_ms = []
         static_stack = [dem, mask, rough]
 
-        with torch.no_grad():
+        with torch.inference_mode():
             for s in range(1, steps + 1):
                 t_step_0 = time.perf_counter()
 

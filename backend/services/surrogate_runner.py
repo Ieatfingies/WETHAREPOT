@@ -34,6 +34,16 @@ class NeuralSurrogateRunner:
     def is_available(self) -> bool:
         return self._find_valid_weights() is not None
 
+    def warmup(self) -> bool:
+        """Pre-warms surrogate neural weights to eliminate cold-start latency."""
+        try:
+            if self.is_available():
+                self._get_engine()
+                return True
+        except Exception as e:
+            print(f"[Surrogate] Warmup warning: {e}")
+        return False
+
     def _get_engine(self):
         if self._engine is None:
             valid_path = self._find_valid_weights()

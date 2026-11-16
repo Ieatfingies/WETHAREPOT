@@ -1,33 +1,42 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     
-    <!-- Editorial & Cartographic Typography -->
+    <!-- PWA & Mobile Web App Directives -->
+    <meta name="theme-color" content="#0b0d0c" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="WETHAREPOT" />
+
+    <!-- Editorial, Monospace & Cartographic Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,600&family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
 
     <!-- Primary Metadata -->
-    <title>WETHAREPOT — Urban Flood Intelligence & Hydrologic Cartography</title>
-    <meta name="title" content="WETHAREPOT — Urban Flood Intelligence & Hydrologic Cartography" />
-    <meta name="description" content="Physics-informed 2D shallow-water hydrologic forecasting and urban flood cartography for the Bengaluru metropolitan region." />
-    <meta name="theme-color" content="#F4EFE6" />
-    <meta name="color-scheme" content="light" />
+    <title>WETHAREPOT — Bengaluru Urban Flood Digital Twin</title>
+    <meta name="title" content="WETHAREPOT — Bengaluru Urban Flood Digital Twin" />
+    <meta name="description" content="Physics-informed 2D shallow-water hydrologic forecasting, ResUNet surrogate modeling, and 3D digital twin for the Bengaluru metropolitan region." />
 
     <!-- Open Graph / Social Sharing -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="WETHAREPOT" />
-    <meta property="og:title" content="WETHAREPOT — Urban Flood Intelligence & Hydrologic Cartography" />
-    <meta property="og:description" content="Physics-informed 2D shallow-water hydrologic forecasting and urban flood cartography for Bengaluru catchments." />
+    <meta property="og:title" content="WETHAREPOT — Bengaluru Urban Flood Digital Twin" />
+    <meta property="og:description" content="Physics-informed 2D shallow water simulation & 3D digital twin across Bengaluru." />
     <meta property="og:image" content="/favicon.svg" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="WETHAREPOT — Urban Flood Intelligence" />
-    <meta name="twitter:description" content="High-resolution 2D shallow water equation solver & hydrologic flood simulation across Bengaluru catchments." />
+    <meta name="twitter:title" content="WETHAREPOT — Bengaluru Flood Digital Twin" />
+    <meta name="twitter:description" content="High-resolution 2D shallow water equation solver & hydrologic flood simulation across Bengaluru." />
     <meta name="twitter:image" content="/favicon.svg" />
   </head>
   <body>

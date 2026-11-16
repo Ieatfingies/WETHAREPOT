@@ -127,7 +127,7 @@ def _save_run_result_storage(run_id: str, dem: np.ndarray, building_mask: np.nda
     """Saves heavy simulation output rasters to disk/object storage archive."""
     SETTINGS.runs_base_dir.mkdir(parents=True, exist_ok=True)
     archive_path = SETTINGS.runs_base_dir / f"{run_id}_result.npz"
-    np.savez_compressed(
+    np.savez(
         archive_path,
         dem=dem.astype(np.float32),
         building_mask=building_mask.astype(np.uint8),

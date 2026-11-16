@@ -30,7 +30,7 @@ const CATCHMENT_FLOAT_Y = 8.0; // Selected catchment tile floats up +8.0 units a
 
 /**
  * Generates a warm, subtle procedural apartment lights texture for evening/night past 5:00 PM :3
- * Very minimal lights: few pinprick windows glowing gently across apartment blocks.
+ * Very minimal lights: few glowing windows across apartment blocks.
  */
 function createApartmentLightsTexture(): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -45,8 +45,8 @@ function createApartmentLightsTexture(): THREE.CanvasTexture {
 
   const rows = 8;
   const cols = 8;
-  const winW = 7;
-  const winH = 5;
+  const winW = 6;
+  const winH = 4;
   const padX = 4;
   const padY = 5;
 
@@ -66,14 +66,14 @@ function createApartmentLightsTexture(): THREE.CanvasTexture {
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      // Very minimal lights: only ~12% of windows lit past 5 PM :3
-      if (rnd() < 0.12) {
+      // Very minimal lights: only ~10% of windows lit past 5 PM :3
+      if (rnd() < 0.10) {
         const x = c * 16 + padX;
         const y = r * 16 + padY;
         const color = warmHues[Math.floor(rnd() * warmHues.length)];
 
         // Soft ambient window halo
-        ctx.fillStyle = "rgba(255, 205, 120, 0.20)";
+        ctx.fillStyle = "rgba(255, 205, 120, 0.18)";
         ctx.fillRect(x - 1, y - 1, winW + 2, winH + 2);
 
         // Core tiny window light
@@ -115,7 +115,7 @@ const BENGALURU_LAKES: BengaluruLake[] = [
 
 /**
  * Procedurally generates expansive low-poly districts across Bengaluru metropolitan domain
- * (Not bound by any pedestal grid; spans naturally across city horizons).
+ * (Not bound by any small grid; spans naturally across city horizons).
  */
 function generateBengaluruCityBlocks(): { x: number; y: number; z: number; width: number; depth: number; height: number }[] {
   const blocks: { x: number; y: number; z: number; width: number; depth: number; height: number }[] = [];
@@ -189,8 +189,8 @@ export function FloodTwin3D({
   buildingMask,
   frameH,
   meta,
-  regionName = "Catchment",
-  theme = "light",
+  regionName = "Bengaluru Study Area",
+  theme: _theme = "dark",
   rainfallMmHr = 0,
   timeOfDayHour,
   historicalDate,
@@ -204,29 +204,33 @@ export function FloodTwin3D({
   const animFrameIdRef = useRef<number | null>(null);
 
   // Mesh & Light references for dynamic updating
-  const terrainMeshRef = useRef<THREE.Mesh | null>(null);
   const regionalTerrainMeshRef = useRef<THREE.Mesh | null>(null);
   const cityLakesGroupRef = useRef<THREE.Group | null>(null);
   const cityBuildingsMeshRef = useRef<THREE.InstancedMesh | null>(null);
+
+  const terrainMeshRef = useRef<THREE.Mesh | null>(null);
   const catchmentBoundaryRef = useRef<THREE.LineSegments | null>(null);
-  const waterMeshRef = useRef<THREE.Mesh | null>(null);
+  const waterMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const buildingsMeshRef = useRef<THREE.InstancedMesh | null>(null);
+
   const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
   const rimLightRef = useRef<THREE.DirectionalLight | null>(null);
+
   const rainMeshRef = useRef<THREE.LineSegments | null>(null);
   const rainPositionsRef = useRef<Float32Array | null>(null);
   const rainDropDataRef = useRef<{ x: number; y: number; z: number; speed: number }[]>([]);
 
-  const [verticalExaggeration, setVerticalExaggeration] = useState<number>(2.0);
-  const [showRain, setShowRain] = useState<boolean>(true);
-  const [sceneReady, setSceneReady] = useState<boolean>(false);
-  const showRainRef = useRef(showRain);
+  const [sceneReady, setSceneReady] = useState(false);
+  const [verticalExaggeration, setVerticalExaggeration] = useState(2.0);
+  const [showRain, setShowRain] = useState(true);
+
   const rainfallMmHrRef = useRef(rainfallMmHr);
+  const showRainRef = useRef(showRain);
 
   useEffect(() => {
-    showRainRef.current = showRain;
     rainfallMmHrRef.current = rainfallMmHr;
+    showRainRef.current = showRain;
   }, [showRain, rainfallMmHr]);
 
   const [hoveredCell, setHoveredCell] = useState<{
@@ -238,7 +242,7 @@ export function FloodTwin3D({
   // Subtle procedural apartment window lights texture for evening/night past 5 PM :3
   const apartmentLightsTexture = useMemo(() => createApartmentLightsTexture(), []);
 
-  // Live fallback date initialized once to preserve React purity
+  // Live fallback date initialized once
   const [liveDate] = useState(() => new Date());
   const activeDate = historicalDate ?? liveDate;
 
@@ -254,7 +258,7 @@ export function FloodTwin3D({
 
   // Compute elevation bounds
   const { minElev, maxElev } = useMemo(() => {
-    if (!dem || dem.length === 0) return { minElev: 800, maxElev: 900 };
+    if (!dem || dem.length === 0) return { minElev: 800, maxElev: 920 };
     let min = Infinity;
     let max = -Infinity;
     for (let r = 0; r < dem.length; r += STRIDE) {
@@ -269,22 +273,9 @@ export function FloodTwin3D({
     }
     return {
       minElev: Number.isFinite(min) ? min : 800,
-      maxElev: Number.isFinite(max) ? max : 900,
+      maxElev: Number.isFinite(max) ? max : 920,
     };
   }, [dem]);
-
-  // Color palette depending on theme
-  const colors = useMemo(() => {
-    const isDark = theme === "dark";
-    return {
-      background: isDark ? 0x161817 : 0xece6dc,
-      fog: isDark ? 0x161817 : 0xece6dc,
-      building: isDark ? 0x3f463e : 0x6e766a,
-      buildingRoof: isDark ? 0x5a6358 : 0x8a9486,
-      ambient: isDark ? 0x505850 : 0x989080,
-      directional: isDark ? 0xfffaea : 0xfffaea,
-    };
-  }, [theme]);
 
   // Initialize Three.js scene (Runs ONCE on mount — never torn down on parameter changes)
   useEffect(() => {
@@ -297,9 +288,9 @@ export function FloodTwin3D({
     // 1. Scene
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(0xece6dc, 0.0011);
+    scene.fog = new THREE.FogExp2(0x101311, 0.0011);
 
-    // 2. Camera (Isometric oblique perspective over unbounded Bengaluru metropolitan area)
+    // 2. Camera (Isometric oblique perspective over Bengaluru metropolitan area)
     const camera = new THREE.PerspectiveCamera(38, width / height, 1, 4500);
     cameraRef.current = camera;
     camera.position.set(360, 260, 360);
@@ -331,11 +322,11 @@ export function FloodTwin3D({
     controls.target.set(0, 12, 0);
 
     // 5. Lighting
-    const ambientLight = new THREE.AmbientLight(0x9ea298, 1.15);
+    const ambientLight = new THREE.AmbientLight(0x505850, 1.25);
     ambientLightRef.current = ambientLight;
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfffae5, 1.7);
+    const sunLight = new THREE.DirectionalLight(0xfffaea, 1.6);
     sunLight.position.set(180, 240, 180);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 2048;
@@ -350,7 +341,7 @@ export function FloodTwin3D({
     sunLightRef.current = sunLight;
     scene.add(sunLight);
 
-    const rimLight = new THREE.DirectionalLight(0x8ab9c2, 0.45);
+    const rimLight = new THREE.DirectionalLight(0x8ab9c2, 0.5);
     rimLight.position.set(-180, 140, -180);
     rimLightRef.current = rimLight;
     scene.add(rimLight);
@@ -369,7 +360,7 @@ export function FloodTwin3D({
         mat.roughness = 0.16 + Math.sin(elapsed * 1.5) * 0.04;
       }
 
-      // Dynamic city lakes filling & pulsation during rain / simulation
+      // Dynamic city lakes filling & pulsation
       if (cityLakesGroupRef.current) {
         const rainSurge = Math.min(2.5, (rainfallMmHrRef.current / 40.0) * 1.5);
         cityLakesGroupRef.current.children.forEach((child, idx) => {
@@ -444,150 +435,142 @@ export function FloodTwin3D({
     };
   }, []);
 
-  // Dynamically update Sun, Sky & Ambient Lighting as solar time changes, plus minimal apartment lights past 5:00 PM :3
-  useEffect(() => {
-    const scene = sceneRef.current;
-    if (!scene) return;
-
-    if (sunLightRef.current) {
-      sunLightRef.current.position.set(...solarState.sunDirection);
-      sunLightRef.current.color.setHex(solarState.sunColor);
-      sunLightRef.current.intensity = solarState.sunIntensity;
-    }
-    if (ambientLightRef.current) {
-      ambientLightRef.current.color.setHex(solarState.ambientColor);
-      ambientLightRef.current.intensity = solarState.ambientIntensity;
-    }
-    if (rimLightRef.current) {
-      rimLightRef.current.color.setHex(solarState.isNight ? 0x5a7a9e : 0x8ab9c2);
-      rimLightRef.current.intensity = solarState.isNight ? 0.6 : 0.45;
-    }
-
-    scene.background = new THREE.Color(solarState.backgroundColor);
-    if (scene.fog) {
-      scene.fog.color.setHex(solarState.fogColor);
-    }
-
-    // Minimal Cozy Apartment Lights past 5:00 PM (17:00 IST) :3
-    const isPast5PMOrNight = currentHour >= 17.0 || currentHour < 6.0 || solarState.isNight;
-    const windowGlowIntensity = isPast5PMOrNight ? 0.55 : 0.0;
-
-    if (buildingsMeshRef.current) {
-      const mat = buildingsMeshRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissive.setHex(0xffdf88);
-      mat.emissiveMap = isPast5PMOrNight ? apartmentLightsTexture : null;
-      mat.emissiveIntensity = windowGlowIntensity;
-      mat.needsUpdate = true;
-    }
-    if (cityBuildingsMeshRef.current) {
-      const mat = cityBuildingsMeshRef.current.material as THREE.MeshStandardMaterial;
-      mat.emissive.setHex(0xffdf88);
-      mat.emissiveMap = isPast5PMOrNight ? apartmentLightsTexture : null;
-      mat.emissiveIntensity = isPast5PMOrNight ? 0.50 : 0.0;
-      mat.needsUpdate = true;
-    }
-  }, [solarState, currentHour, apartmentLightsTexture]);
-
-  // Build / Update Low-Poly Raindrop Particle System across expansive Bengaluru domain
+  // Build Regional Bengaluru Background (Unbounded city ground, lakes, city blocks) — ONCE on mount!
   useEffect(() => {
     const scene = sceneRef.current;
     if (!sceneReady || !scene) return;
 
-    if (rainMeshRef.current) {
-      scene.remove(rainMeshRef.current);
-      rainMeshRef.current.geometry.dispose();
-      (rainMeshRef.current.material as THREE.Material).dispose();
-      rainMeshRef.current = null;
-      rainPositionsRef.current = null;
-      rainDropDataRef.current = [];
+    // 1. Regional Undulating City Terrain Ground
+    const regSize = 1600;
+    const regSegs = 72;
+    const regGeo = new THREE.PlaneGeometry(regSize, regSize, regSegs, regSegs);
+    regGeo.rotateX(-Math.PI / 2);
+
+    const pos = regGeo.attributes.position as THREE.BufferAttribute;
+    const regColors: number[] = [];
+    const lowBaseColor = new THREE.Color(0x191c1a);
+    const midBaseColor = new THREE.Color(0x232724);
+    const highBaseColor = new THREE.Color(0x2c332d);
+
+    for (let i = 0; i < pos.count; i++) {
+      const vx = pos.getX(i);
+      const vz = pos.getZ(i);
+
+      // Organic Deccan plateau ridge and valley undulations
+      const elev =
+        Math.cos(vx * 0.0035) * 4.2 -
+        Math.sin(vz * 0.003) * 3.5 +
+        Math.sin((vx + vz) * 0.006) * 1.8 -
+        1.5;
+      pos.setY(i, elev);
+
+      const normY = (elev + 5.0) / 10.0;
+      const c = new THREE.Color();
+      if (normY < 0.45) c.lerpColors(lowBaseColor, midBaseColor, normY / 0.45);
+      else c.lerpColors(midBaseColor, highBaseColor, (normY - 0.45) / 0.55);
+
+      regColors.push(c.r, c.g, c.b);
     }
 
-    if (!showRain || rainfallMmHr <= 0) return;
+    regGeo.setAttribute("color", new THREE.Float32BufferAttribute(regColors, 3));
+    regGeo.computeVertexNormals();
 
-    // Density scaled by rainfall mm/hr across whole unbounded Bengaluru metropolitan span (1400 units)
-    const count = Math.min(4200, Math.max(600, Math.round(rainfallMmHr * 45)));
-    const planeSize = 1400;
+    const regMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.90,
+      metalness: 0.05,
+      flatShading: true,
+    });
+    const regMesh = new THREE.Mesh(regGeo, regMat);
+    regMesh.receiveShadow = true;
+    scene.add(regMesh);
+    regionalTerrainMeshRef.current = regMesh;
 
-    const positions = new Float32Array(count * 6); // 2 vertices per segment * 3 coords
-    const dropData: { x: number; y: number; z: number; speed: number }[] = [];
-    const baseSpeed = 75 + Math.min(80, rainfallMmHr * 0.9);
-
-    for (let i = 0; i < count; i++) {
-      const x = (Math.random() - 0.5) * planeSize;
-      const y = Math.random() * 140;
-      const z = (Math.random() - 0.5) * planeSize;
-      const speed = baseSpeed + (Math.random() - 0.5) * 20;
-
-      dropData.push({ x, y, z, speed });
-
-      const idx = i * 6;
-      positions[idx] = x;
-      positions[idx + 1] = y;
-      positions[idx + 2] = z;
-      positions[idx + 3] = x - 0.45;
-      positions[idx + 4] = y - 4.5;
-      positions[idx + 5] = z - 0.25;
-    }
-
-    const rainGeo = new THREE.BufferGeometry();
-    rainGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-
-    const rainMat = new THREE.LineBasicMaterial({
-      color: 0x8cc4d6,
+    // 2. Regional Lakes across Bengaluru
+    const lakesGroup = new THREE.Group();
+    const lakeMaterial = new THREE.MeshStandardMaterial({
+      color: 0x244248,
+      roughness: 0.12,
+      metalness: 0.15,
       transparent: true,
-      opacity: Math.min(0.7, 0.3 + (rainfallMmHr / 120) * 0.35),
-      blending: THREE.AdditiveBlending,
+      opacity: 0.90,
     });
 
-    const rainLines = new THREE.LineSegments(rainGeo, rainMat);
-    scene.add(rainLines);
-    rainMeshRef.current = rainLines;
-    rainPositionsRef.current = positions;
-    rainDropDataRef.current = dropData;
+    BENGALURU_LAKES.forEach((lake) => {
+      const lakeGeo = new THREE.CylinderGeometry(lake.width / 2, lake.width / 2, 0.4, 28);
+      const lakeMesh = new THREE.Mesh(lakeGeo, lakeMaterial);
+      lakeMesh.position.set(lake.x, lake.elevation, lake.z);
+      lakeMesh.rotation.y = lake.rotation;
+      lakeMesh.scale.set(1, 1, lake.length / lake.width);
+      lakeMesh.receiveShadow = true;
+      lakesGroup.add(lakeMesh);
+    });
+    scene.add(lakesGroup);
+    cityLakesGroupRef.current = lakesGroup;
+
+    // 3. Regional City Blocks across Metropolitan Bengaluru
+    const cityBlocks = generateBengaluruCityBlocks();
+    const cBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const cBoxMat = new THREE.MeshStandardMaterial({
+      color: 0x3a4239,
+      roughness: 0.78,
+      metalness: 0.08,
+      flatShading: true,
+      emissive: new THREE.Color(0xffdf88),
+      emissiveIntensity: 0.0,
+    });
+
+    const cInstMesh = new THREE.InstancedMesh(cBoxGeo, cBoxMat, cityBlocks.length);
+    cInstMesh.castShadow = true;
+    cInstMesh.receiveShadow = true;
+    const cDummy = new THREE.Object3D();
+
+    cityBlocks.forEach((b, idx) => {
+      cDummy.position.set(b.x, b.y, b.z);
+      cDummy.scale.set(b.width, b.height, b.depth);
+      cDummy.updateMatrix();
+      cInstMesh.setMatrixAt(idx, cDummy.matrix);
+    });
+
+    cInstMesh.instanceMatrix.needsUpdate = true;
+    scene.add(cInstMesh);
+    cityBuildingsMeshRef.current = cInstMesh;
 
     return () => {
-      scene.remove(rainLines);
-      rainGeo.dispose();
-      rainMat.dispose();
+      if (regMesh) {
+        scene.remove(regMesh);
+        regGeo.dispose();
+        regMat.dispose();
+      }
+      if (lakesGroup) {
+        scene.remove(lakesGroup);
+        lakesGroup.children.forEach((c) => {
+          if (c instanceof THREE.Mesh) c.geometry.dispose();
+        });
+        lakeMaterial.dispose();
+      }
+      if (cInstMesh) {
+        scene.remove(cInstMesh);
+        cBoxGeo.dispose();
+        cBoxMat.dispose();
+      }
     };
-  }, [sceneReady, rainfallMmHr, showRain]);
+  }, [sceneReady]);
 
-  // Build / Update Floating Catchment Terrain & Unbounded Regional Bengaluru Topography
+  // Build / Update Floating Selected Study Catchment Terrain & Boundary
   useEffect(() => {
     const scene = sceneRef.current;
     if (!sceneReady || !scene || !dem || dem.length === 0) return;
 
-    // Remove old terrain & city meshes
     if (terrainMeshRef.current) {
       scene.remove(terrainMeshRef.current);
       terrainMeshRef.current.geometry.dispose();
       terrainMeshRef.current = null;
     }
-    if (regionalTerrainMeshRef.current) {
-      scene.remove(regionalTerrainMeshRef.current);
-      regionalTerrainMeshRef.current.geometry.dispose();
-      regionalTerrainMeshRef.current = null;
-    }
     if (catchmentBoundaryRef.current) {
       scene.remove(catchmentBoundaryRef.current);
       catchmentBoundaryRef.current.geometry.dispose();
       catchmentBoundaryRef.current = null;
-    }
-    if (cityLakesGroupRef.current) {
-      scene.remove(cityLakesGroupRef.current);
-      cityLakesGroupRef.current.children.forEach((c) => {
-        if (c instanceof THREE.Mesh) {
-          c.geometry.dispose();
-          if (Array.isArray(c.material)) c.material.forEach((m) => m.dispose());
-          else c.material.dispose();
-        }
-      });
-      cityLakesGroupRef.current = null;
-    }
-    if (cityBuildingsMeshRef.current) {
-      scene.remove(cityBuildingsMeshRef.current);
-      cityBuildingsMeshRef.current.geometry.dispose();
-      cityBuildingsMeshRef.current = null;
     }
 
     const rows = dem.length;
@@ -600,13 +583,12 @@ export function FloodTwin3D({
     const dz = planeSize / (outRows - 1);
     const elevSpan = Math.max(1, maxElev - minElev);
 
-    // 1. Create floating low-poly indexed terrain geometry for active catchment (elevated at CATCHMENT_FLOAT_Y)
+    // Create floating low-poly indexed terrain geometry for active catchment (elevated at CATCHMENT_FLOAT_Y)
     const geometry = new THREE.BufferGeometry();
     const positions: number[] = [];
     const colorsArr: number[] = [];
     const indices: number[] = [];
 
-    // Height calculation helper (Selected catchment floats above base city)
     const getHeight = (r: number, c: number) => {
       const origR = Math.min(rows - 1, r * STRIDE);
       const origC = Math.min(cols - 1, c * STRIDE);
@@ -614,33 +596,36 @@ export function FloodTwin3D({
       return CATCHMENT_FLOAT_Y + ((rawElev - minElev) / elevSpan) * (18 * verticalExaggeration);
     };
 
-    // Low-poly terrain tint ramp
-    const isDark = theme === "dark";
-    const lowColor = new THREE.Color(isDark ? 0x242823 : 0xbaa992);
-    const midColor = new THREE.Color(isDark ? 0x2f362e : 0xd3c6b2);
-    const highColor = new THREE.Color(isDark ? 0x3d463b : 0xe5dcce);
+    // Dark retro-terminal terrain tint ramp with warm earthy undertones
+    const lowColor = new THREE.Color(0x1e2420);
+    const midColor = new THREE.Color(0x28322b);
+    const highColor = new THREE.Color(0x354238);
 
     for (let r = 0; r < outRows; r++) {
-      const z = -planeSize / 2 + r * dz;
       for (let c = 0; c < outCols; c++) {
         const x = -planeSize / 2 + c * dx;
+        const z = -planeSize / 2 + r * dz;
         const y = getHeight(r, c);
 
         positions.push(x, y, z);
 
-        // Normalized elevation color
-        const normY = (dem[r * STRIDE]?.[c * STRIDE] ?? minElev - minElev) / elevSpan;
+        const origR = Math.min(rows - 1, r * STRIDE);
+        const origC = Math.min(cols - 1, c * STRIDE);
+        const rawElev = dem[origR]?.[origC] ?? minElev;
+        const normElev = (rawElev - minElev) / elevSpan;
+
         const vertexColor = new THREE.Color();
-        if (normY < 0.45) {
-          vertexColor.lerpColors(lowColor, midColor, normY / 0.45);
+        if (normElev < 0.40) {
+          vertexColor.lerpColors(lowColor, midColor, normElev / 0.40);
         } else {
-          vertexColor.lerpColors(midColor, highColor, (normY - 0.45) / 0.55);
+          vertexColor.lerpColors(midColor, highColor, (normElev - 0.40) / 0.60);
         }
+
         colorsArr.push(vertexColor.r, vertexColor.g, vertexColor.b);
       }
     }
 
-    // Two triangles per grid cell for low-poly facets
+    // Build triangular facets
     for (let r = 0; r < outRows - 1; r++) {
       for (let c = 0; c < outCols - 1; c++) {
         const i0 = r * outCols + c;
@@ -653,161 +638,60 @@ export function FloodTwin3D({
       }
     }
 
-    geometry.setIndex(indices);
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colorsArr, 3));
+    geometry.setIndex(indices);
     geometry.computeVertexNormals();
 
-    const terrainMaterial = new THREE.MeshStandardMaterial({
+    const material = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      flatShading: true,
       roughness: 0.88,
       metalness: 0.05,
+      flatShading: true,
     });
 
-    const terrainMesh = new THREE.Mesh(geometry, terrainMaterial);
+    const terrainMesh = new THREE.Mesh(geometry, material);
     terrainMesh.receiveShadow = true;
     terrainMesh.castShadow = true;
     scene.add(terrainMesh);
     terrainMeshRef.current = terrainMesh;
 
-    // 2. Expansive Unbounded Regional Bengaluru Deccan Plateau (2200 x 2200 units, NO bounding pedestal box)
-    const regionalSpan = 2200;
-    const regionalSegments = 96;
-    const regGeo = new THREE.PlaneGeometry(regionalSpan, regionalSpan, regionalSegments, regionalSegments);
-    regGeo.rotateX(-Math.PI / 2);
-
-    const regPos = regGeo.attributes.position;
-    const regColors: number[] = [];
-    const regLowColor = new THREE.Color(isDark ? 0x1f2320 : 0xb5a58e);
-    const regMidColor = new THREE.Color(isDark ? 0x272d26 : 0xc7bba7);
-    const regHighColor = new THREE.Color(isDark ? 0x323a31 : 0xdcd3c3);
-
-    for (let i = 0; i < regPos.count; i++) {
-      const vx = regPos.getX(i);
-      const vz = regPos.getZ(i);
-
-      // Natural undulating Deccan topography extending to the horizon
-      const vy = -1.2 + Math.cos(vx * 0.0035) * 3.2 - Math.sin(vz * 0.003) * 2.6;
-      regPos.setY(i, vy);
-
-      const normY = (vy + 5) / 10;
-      const c = new THREE.Color();
-      if (normY < 0.5) {
-        c.lerpColors(regLowColor, regMidColor, Math.max(0, Math.min(1, normY / 0.5)));
-      } else {
-        c.lerpColors(regMidColor, regHighColor, Math.max(0, Math.min(1, (normY - 0.5) / 0.5)));
-      }
-      regColors.push(c.r, c.g, c.b);
+    // Glowing Orange Terminal Boundary Edge for Floating Catchment
+    const edgeSegments: number[] = [];
+    // Top & Bottom boundary
+    for (let c = 0; c < outCols - 1; c++) {
+      edgeSegments.push(
+        -planeSize / 2 + c * dx, getHeight(0, c) + 0.1, -planeSize / 2,
+        -planeSize / 2 + (c + 1) * dx, getHeight(0, c + 1) + 0.1, -planeSize / 2
+      );
+      edgeSegments.push(
+        -planeSize / 2 + c * dx, getHeight(outRows - 1, c) + 0.1, planeSize / 2,
+        -planeSize / 2 + (c + 1) * dx, getHeight(outRows - 1, c + 1) + 0.1, planeSize / 2
+      );
+    }
+    // Left & Right boundary
+    for (let r = 0; r < outRows - 1; r++) {
+      edgeSegments.push(
+        -planeSize / 2, getHeight(r, 0) + 0.1, -planeSize / 2 + r * dz,
+        -planeSize / 2, getHeight(r + 1, 0) + 0.1, -planeSize / 2 + (r + 1) * dz
+      );
+      edgeSegments.push(
+        planeSize / 2, getHeight(r, outCols - 1) + 0.1, -planeSize / 2 + r * dz,
+        planeSize / 2, getHeight(r + 1, outCols - 1) + 0.1, -planeSize / 2 + (r + 1) * dz
+      );
     }
 
-    regGeo.setAttribute("color", new THREE.Float32BufferAttribute(regColors, 3));
-    regGeo.computeVertexNormals();
-
-    const regMat = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      flatShading: true,
-      roughness: 0.92,
-      metalness: 0.04,
-    });
-
-    const regMesh = new THREE.Mesh(regGeo, regMat);
-    regMesh.receiveShadow = true;
-    scene.add(regMesh);
-    regionalTerrainMeshRef.current = regMesh;
-
-    // 3. Floating Holographic Neatline Boundary & Elevation Pillars for Selected Catchment
-    const boundHalf = 100.5;
-    const boundY = CATCHMENT_FLOAT_Y + 0.2;
-    const boundaryPositions = new Float32Array([
-      // Floating perimeter ring
-      -boundHalf, boundY, -boundHalf,  boundHalf, boundY, -boundHalf,
-       boundHalf, boundY, -boundHalf,  boundHalf, boundY,  boundHalf,
-       boundHalf, boundY,  boundHalf, -boundHalf, boundY,  boundHalf,
-      -boundHalf, boundY,  boundHalf, -boundHalf, boundY, -boundHalf,
-
-      // Bracket corner ticks
-      -boundHalf, boundY, -boundHalf, -boundHalf + 14, boundY, -boundHalf,
-      -boundHalf, boundY, -boundHalf, -boundHalf, boundY, -boundHalf + 14,
-       boundHalf, boundY, -boundHalf,  boundHalf - 14, boundY, -boundHalf,
-       boundHalf, boundY, -boundHalf,  boundHalf, boundY, -boundHalf + 14,
-       boundHalf, boundY,  boundHalf,  boundHalf - 14, boundY,  boundHalf,
-       boundHalf, boundY,  boundHalf,  boundHalf, boundY,  boundHalf - 14,
-      -boundHalf, boundY,  boundHalf, -boundHalf + 14, boundY,  boundHalf,
-      -boundHalf, boundY,  boundHalf, -boundHalf, boundY,  boundHalf - 14,
-
-      // Vertical guide pillars dropping to base city plane showing the floating selection
-      -boundHalf, 0, -boundHalf, -boundHalf, boundY, -boundHalf,
-       boundHalf, 0, -boundHalf,  boundHalf, boundY, -boundHalf,
-       boundHalf, 0,  boundHalf,  boundHalf, boundY,  boundHalf,
-      -boundHalf, 0,  boundHalf, -boundHalf, boundY,  boundHalf,
-    ]);
-
     const boundGeo = new THREE.BufferGeometry();
-    boundGeo.setAttribute("position", new THREE.BufferAttribute(boundaryPositions, 3));
+    boundGeo.setAttribute("position", new THREE.Float32BufferAttribute(edgeSegments, 3));
     const boundMat = new THREE.LineBasicMaterial({
-      color: isDark ? 0xd48756 : 0xaa5c32, // Terracotta cartographic boundary
+      color: 0xff6b00, // Retro-terminal orange
+      linewidth: 2,
       transparent: true,
       opacity: 0.85,
     });
-    const boundLines = new THREE.LineSegments(boundGeo, boundMat);
-    scene.add(boundLines);
-    catchmentBoundaryRef.current = boundLines;
-
-    // 4. Bengaluru Major Cascading Lakes
-    const lakesGroup = new THREE.Group();
-    const lakeWaterMat = new THREE.MeshStandardMaterial({
-      color: 0x36657a, // River blue / slate cyan
-      roughness: 0.16,
-      metalness: 0.15,
-      transparent: true,
-      opacity: 0.88,
-      flatShading: true,
-    });
-
-    for (const lake of BENGALURU_LAKES) {
-      const lakeGeo = new THREE.CylinderGeometry(lake.width / 2, (lake.width / 2) * 0.9, 0.4, 8);
-      lakeGeo.scale(1, 1, lake.length / lake.width);
-      const lakeMesh = new THREE.Mesh(lakeGeo, lakeWaterMat);
-      lakeMesh.position.set(lake.x, lake.elevation, lake.z);
-      lakeMesh.rotation.y = lake.rotation;
-      lakeMesh.receiveShadow = true;
-      lakesGroup.add(lakeMesh);
-    }
-    scene.add(lakesGroup);
-    cityLakesGroupRef.current = lakesGroup;
-
-    // 5. Expansive Surrounding Bengaluru Districts (InstancedMesh with subtle apartment lights past 5 PM :3)
-    const cityBlocks = generateBengaluruCityBlocks();
-    if (cityBlocks.length > 0) {
-      const cBoxGeo = new THREE.BoxGeometry(1, 1, 1);
-      const isPast5PM = currentHour >= 17.0 || currentHour < 6.0 || solarState.isNight;
-      const cBoxMat = new THREE.MeshStandardMaterial({
-        color: colors.building,
-        roughness: 0.78,
-        metalness: 0.08,
-        flatShading: true,
-        emissive: new THREE.Color(0xffdf88),
-        emissiveMap: isPast5PM ? apartmentLightsTexture : null,
-        emissiveIntensity: isPast5PM ? 0.50 : 0.0,
-      });
-
-      const cInstMesh = new THREE.InstancedMesh(cBoxGeo, cBoxMat, cityBlocks.length);
-      cInstMesh.castShadow = true;
-      cInstMesh.receiveShadow = true;
-
-      const cDummy = new THREE.Object3D();
-      cityBlocks.forEach((b, idx) => {
-        cDummy.position.set(b.x, b.y, b.z);
-        cDummy.scale.set(b.width, b.height, b.depth);
-        cDummy.updateMatrix();
-        cInstMesh.setMatrixAt(idx, cDummy.matrix);
-      });
-
-      cInstMesh.instanceMatrix.needsUpdate = true;
-      scene.add(cInstMesh);
-      cityBuildingsMeshRef.current = cInstMesh;
-    }
+    const boundaryLines = new THREE.LineSegments(boundGeo, boundMat);
+    scene.add(boundaryLines);
+    catchmentBoundaryRef.current = boundaryLines;
 
     return () => {
       if (terrainMeshRef.current) {
@@ -815,32 +699,15 @@ export function FloodTwin3D({
         terrainMeshRef.current.geometry.dispose();
         terrainMeshRef.current = null;
       }
-      if (regionalTerrainMeshRef.current) {
-        scene.remove(regionalTerrainMeshRef.current);
-        regionalTerrainMeshRef.current.geometry.dispose();
-        regionalTerrainMeshRef.current = null;
-      }
       if (catchmentBoundaryRef.current) {
         scene.remove(catchmentBoundaryRef.current);
         catchmentBoundaryRef.current.geometry.dispose();
         catchmentBoundaryRef.current = null;
       }
-      if (cityLakesGroupRef.current) {
-        scene.remove(cityLakesGroupRef.current);
-        cityLakesGroupRef.current.children.forEach((c) => {
-          if (c instanceof THREE.Mesh) c.geometry.dispose();
-        });
-        cityLakesGroupRef.current = null;
-      }
-      if (cityBuildingsMeshRef.current) {
-        scene.remove(cityBuildingsMeshRef.current);
-        cityBuildingsMeshRef.current.geometry.dispose();
-        cityBuildingsMeshRef.current = null;
-      }
     };
-  }, [sceneReady, dem, minElev, maxElev, verticalExaggeration, theme, colors, currentHour, solarState, apartmentLightsTexture]);
+  }, [sceneReady, dem, minElev, maxElev, verticalExaggeration]);
 
-  // Build / Update Floating Catchment Building Blocks
+  // Build / Update Floating Catchment Building Footprint Blocks
   useEffect(() => {
     const scene = sceneRef.current;
     if (!sceneReady || !scene || !dem || !buildingMask) return;
@@ -867,17 +734,16 @@ export function FloodTwin3D({
           const rawElev = dem[r]?.[c] ?? minElev;
           const terrainY = CATCHMENT_FLOAT_Y + ((rawElev - minElev) / elevSpan) * (18 * verticalExaggeration);
 
-          // Geographically realistic Bengaluru building extrusion:
-          // Low-rise residential (3.5-7m), mid-rise apartments (8-16m), and commercial/tech blocks (18-32m)
+          // Geographically realistic Bengaluru building extrusion
           const hash = Math.sin(r * 12.9898 + c * 78.233) * 43758.5453;
           const normHash = Math.abs(hash) % 1.0;
           let bldgHeight: number;
           if (normHash < 0.60) {
-            bldgHeight = 4.0 + normHash * 6.0; // 4m - 7.6m low-rise dwellings
+            bldgHeight = 4.0 + normHash * 6.0; // 4m - 7.6m low-rise residential
           } else if (normHash < 0.88) {
             bldgHeight = 8.5 + (normHash - 0.60) * 25.0; // 8.5m - 15.5m mid-rise apartment blocks
           } else {
-            bldgHeight = 16.0 + (normHash - 0.88) * 110.0; // 16m - 29m tech-park & commercial towers
+            bldgHeight = 16.0 + (normHash - 0.88) * 110.0; // 16m - 29m tech towers
           }
 
           buildingInstances.push({
@@ -894,15 +760,13 @@ export function FloodTwin3D({
 
     const blockSize = (planeSize / cols) * STRIDE * 0.92;
     const boxGeo = new THREE.BoxGeometry(blockSize, 1, blockSize);
-    const isPast5PM = currentHour >= 17.0 || currentHour < 6.0 || solarState.isNight;
     const boxMat = new THREE.MeshStandardMaterial({
-      color: colors.building,
+      color: 0x3d453c,
       roughness: 0.75,
       metalness: 0.1,
       flatShading: true,
       emissive: new THREE.Color(0xffdf88),
-      emissiveMap: isPast5PM ? apartmentLightsTexture : null,
-      emissiveIntensity: isPast5PM ? 0.55 : 0.0,
+      emissiveIntensity: 0.0,
     });
 
     const instancedMesh = new THREE.InstancedMesh(boxGeo, boxMat, buildingInstances.length);
@@ -910,7 +774,6 @@ export function FloodTwin3D({
     instancedMesh.receiveShadow = true;
 
     const dummy = new THREE.Object3D();
-
     buildingInstances.forEach((inst, i) => {
       dummy.position.set(inst.x, inst.y, inst.z);
       dummy.scale.set(1, inst.scaleY, 1);
@@ -921,7 +784,15 @@ export function FloodTwin3D({
     instancedMesh.instanceMatrix.needsUpdate = true;
     scene.add(instancedMesh);
     buildingsMeshRef.current = instancedMesh;
-  }, [sceneReady, dem, buildingMask, minElev, maxElev, verticalExaggeration, colors, currentHour, solarState, apartmentLightsTexture]);
+
+    return () => {
+      if (buildingsMeshRef.current) {
+        scene.remove(buildingsMeshRef.current);
+        buildingsMeshRef.current.geometry.dispose();
+        buildingsMeshRef.current = null;
+      }
+    };
+  }, [sceneReady, dem, buildingMask, minElev, maxElev, verticalExaggeration]);
 
   // Build / Dynamically Update Floating Catchment Water Surface, Depths & Lake Bed Filling
   useEffect(() => {
@@ -931,6 +802,7 @@ export function FloodTwin3D({
     if (waterMeshRef.current) {
       scene.remove(waterMeshRef.current);
       waterMeshRef.current.geometry.dispose();
+      (waterMeshRef.current.material as THREE.Material).dispose();
       waterMeshRef.current = null;
     }
 
@@ -953,17 +825,19 @@ export function FloodTwin3D({
         const h = frameH?.[r]?.[c] ?? 0;
         const rawElev = dem[r]?.[c] ?? minElev;
         const normElev = (rawElev - minElev) / elevSpan;
-        const isLakeBasin = normElev < 0.14; // Low-lying natural lake depression
+        // Natural lake basin depression threshold
+        const isLakeBasin = normElev <= 0.16;
 
-        // Render water if inundated from simulation OR if within lake depression during rain/sim
-        if (h >= INUNDATION_THRESHOLD_M || (isLakeBasin && (h > 0 || rainfallMmHrRef.current > 0))) {
+        // Lake beds ALWAYS render water (never dry dust), swelling dynamically as h increases!
+        // Inundated terrain cells render when h >= INUNDATION_THRESHOLD_M
+        if (h >= INUNDATION_THRESHOLD_M || isLakeBasin) {
           const x = -planeSize / 2 + (c / cols) * planeSize;
           const z = -planeSize / 2 + (r / rows) * planeSize;
           const terrainY = CATCHMENT_FLOAT_Y + normElev * (18 * verticalExaggeration);
 
           // Lake water naturally fills the basin depression and swells with flood depth
-          const lakeBaselineDepth = isLakeBasin ? Math.max(0.18, (0.14 - normElev) * 10.0 * verticalExaggeration) : 0;
-          const effectiveDepth = Math.max(h, lakeBaselineDepth + h * 1.5);
+          const lakeBaselineDepth = isLakeBasin ? Math.max(0.22, (0.16 - normElev) * 8.0 * verticalExaggeration) : 0;
+          const effectiveDepth = Math.max(h, lakeBaselineDepth + h * 1.4);
           const waterSurfaceY = terrainY + Math.max(0.18, effectiveDepth * verticalExaggeration * 1.15);
 
           waterCells.push({
@@ -1003,15 +877,15 @@ export function FloodTwin3D({
       // Depth Color Ramp: Clear turquoise shallow -> deep river slate -> terracotta clay flood
       const d = cell.depth;
       if (d < 0.15) {
-        color.setRGB(0.52, 0.74, 0.78); // Shallow river cyan
+        color.setRGB(0.50, 0.76, 0.80); // Shallow lake cyan
       } else if (d < 0.30) {
-        color.setRGB(0.28, 0.56, 0.65); // Moderate river slate
+        color.setRGB(0.26, 0.58, 0.68); // Moderate river slate
       } else if (d < 0.60) {
-        color.setRGB(0.18, 0.37, 0.48); // High hazard river ink
+        color.setRGB(0.18, 0.38, 0.50); // High hazard river ink
       } else if (d < 1.00) {
-        color.setRGB(0.71, 0.45, 0.32); // Severe hazard terracotta
+        color.setRGB(0.74, 0.44, 0.30); // Severe hazard terracotta
       } else {
-        color.setRGB(0.58, 0.27, 0.22); // Critical clay red
+        color.setRGB(0.60, 0.25, 0.20); // Critical clay red
       }
       waterInstanced.setColorAt(i, color);
     });
@@ -1020,8 +894,123 @@ export function FloodTwin3D({
     if (waterInstanced.instanceColor) waterInstanced.instanceColor.needsUpdate = true;
 
     scene.add(waterInstanced);
-    waterMeshRef.current = waterInstanced as unknown as THREE.Mesh;
+    waterMeshRef.current = waterInstanced;
+
+    return () => {
+      if (waterMeshRef.current) {
+        scene.remove(waterMeshRef.current);
+        waterMeshRef.current.geometry.dispose();
+        (waterMeshRef.current.material as THREE.Material).dispose();
+        waterMeshRef.current = null;
+      }
+    };
   }, [sceneReady, dem, frameH, minElev, maxElev, verticalExaggeration]);
+
+  // Dynamically update Sun, Sky & Ambient Lighting as solar time changes, plus minimal apartment lights past 5:00 PM :3
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    if (sunLightRef.current) {
+      sunLightRef.current.position.set(...solarState.sunDirection);
+      sunLightRef.current.color.setHex(solarState.sunColor);
+      sunLightRef.current.intensity = solarState.sunIntensity;
+    }
+    if (ambientLightRef.current) {
+      ambientLightRef.current.color.setHex(solarState.ambientColor);
+      ambientLightRef.current.intensity = solarState.ambientIntensity;
+    }
+    if (rimLightRef.current) {
+      rimLightRef.current.color.setHex(solarState.isNight ? 0x5a7a9e : 0x8ab9c2);
+      rimLightRef.current.intensity = solarState.isNight ? 0.6 : 0.45;
+    }
+
+    scene.background = new THREE.Color(solarState.backgroundColor);
+    if (scene.fog) {
+      scene.fog.color.setHex(solarState.fogColor);
+    }
+
+    // Minimal Cozy Apartment Lights past 5:00 PM (17:00 IST) :3
+    const isPast5PMOrNight = currentHour >= 17.0 || currentHour < 6.0 || solarState.isNight;
+    const windowGlowIntensity = isPast5PMOrNight ? 0.45 : 0.0;
+
+    if (buildingsMeshRef.current) {
+      const mat = buildingsMeshRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissive.setHex(0xffdf88);
+      mat.emissiveMap = isPast5PMOrNight ? apartmentLightsTexture : null;
+      mat.emissiveIntensity = windowGlowIntensity;
+      mat.needsUpdate = true;
+    }
+    if (cityBuildingsMeshRef.current) {
+      const mat = cityBuildingsMeshRef.current.material as THREE.MeshStandardMaterial;
+      mat.emissive.setHex(0xffdf88);
+      mat.emissiveMap = isPast5PMOrNight ? apartmentLightsTexture : null;
+      mat.emissiveIntensity = isPast5PMOrNight ? 0.40 : 0.0;
+      mat.needsUpdate = true;
+    }
+  }, [solarState, currentHour, apartmentLightsTexture]);
+
+  // Build / Update Low-Poly Raindrop Particle System across Bengaluru domain
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!sceneReady || !scene) return;
+
+    if (rainMeshRef.current) {
+      scene.remove(rainMeshRef.current);
+      rainMeshRef.current.geometry.dispose();
+      (rainMeshRef.current.material as THREE.Material).dispose();
+      rainMeshRef.current = null;
+      rainPositionsRef.current = null;
+      rainDropDataRef.current = [];
+    }
+
+    if (!showRain || rainfallMmHr <= 0) return;
+
+    // Density scaled by rainfall mm/hr across metropolitan span (1400 units)
+    const count = Math.min(4200, Math.max(600, Math.round(rainfallMmHr * 45)));
+    const planeSize = 1400;
+
+    const positions = new Float32Array(count * 6);
+    const dropData: { x: number; y: number; z: number; speed: number }[] = [];
+    const baseSpeed = 75 + Math.min(80, rainfallMmHr * 0.9);
+
+    for (let i = 0; i < count; i++) {
+      const x = (Math.random() - 0.5) * planeSize;
+      const y = Math.random() * 140;
+      const z = (Math.random() - 0.5) * planeSize;
+      const speed = baseSpeed + (Math.random() - 0.5) * 20;
+
+      dropData.push({ x, y, z, speed });
+
+      const idx = i * 6;
+      positions[idx] = x;
+      positions[idx + 1] = y;
+      positions[idx + 2] = z;
+      positions[idx + 3] = x - 0.45;
+      positions[idx + 4] = y - 4.5;
+      positions[idx + 5] = z - 0.25;
+    }
+
+    const rainGeo = new THREE.BufferGeometry();
+    rainGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const rainMat = new THREE.LineBasicMaterial({
+      color: 0x8ab9c2,
+      transparent: true,
+      opacity: 0.60,
+    });
+
+    const rainLines = new THREE.LineSegments(rainGeo, rainMat);
+    scene.add(rainLines);
+    rainMeshRef.current = rainLines;
+    rainPositionsRef.current = positions;
+    rainDropDataRef.current = dropData;
+
+    return () => {
+      scene.remove(rainLines);
+      rainGeo.dispose();
+      rainMat.dispose();
+    };
+  }, [sceneReady, rainfallMmHr, showRain]);
 
   // Raycasting cell inspection on mouse move
   const handlePointerMove = useCallback(
@@ -1071,7 +1060,6 @@ export function FloodTwin3D({
       cameraRef.current.position.set(360, 260, 360);
       controlsRef.current.target.set(0, 12, 0);
     } else {
-      // Direct Top-Down Orthogonal-like angle
       cameraRef.current.position.set(0, 520, 0);
       controlsRef.current.target.set(0, 12, 0);
     }
@@ -1104,7 +1092,7 @@ export function FloodTwin3D({
           <strong>3D DIGITAL TWIN • BENGALURU METROPOLITAN REGION</strong>
         </div>
         <div className="twin-badge-meta">
-          <span>ACTIVE CATCHMENT: {regionName.toUpperCase()} (ELEVATED)</span>
+          <span>ACTIVE STUDY AREA: {regionName.toUpperCase()} (ELEVATED)</span>
           <span className="dot">•</span>
           <span>ELEV: {minElev.toFixed(0)}m – {maxElev.toFixed(0)}m MSL</span>
           <span className="dot">•</span>
@@ -1209,11 +1197,11 @@ export function FloodTwin3D({
         <div className="legend-items">
           <div className="legend-row">
             <span className="swatch c-shallow" />
-            <span>0.01 – 0.15m (Sheet)</span>
+            <span>0.01 – 0.15m (Sheet Flow)</span>
           </div>
           <div className="legend-row">
             <span className="swatch c-mod" />
-            <span>0.15 – 0.30m (Curb)</span>
+            <span>0.15 – 0.30m (Curb Overflow)</span>
           </div>
           <div className="legend-row">
             <span className="swatch c-high" />
