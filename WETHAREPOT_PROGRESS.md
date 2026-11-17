@@ -3,7 +3,7 @@
 **Project**: WETHAREPOT — Real-Time Urban Flood Forecasting Digital Twin for Bengaluru  
 **Branch**: `main`  
 **Last Updated**: 2026-11-16T12:25:00+05:30  
-**Status**: COMPLETE (Citywide Digital Twin, Fast Solvers & Dark Retro-Terminal Release)
+**Status**: ACTIVE — Solver job lifecycle, historical flood archive, and measured performance work are in progress
 
 ---
 
@@ -15,8 +15,8 @@
 | **Frontend Foundation** | COMPLETE | React 19 + TypeScript + Vite + MapLibre GL + Three.js. 0 oxlint warnings, clean 1.25s build. |
 | **Citywide Navigation (A)** | COMPLETE | Search any Bengaluru locality/road/lake (Nominatim OSM), live lat/lon HUD, custom 2.5km study box. |
 | **3D Digital Twin (B)** | COMPLETE | Stable Three.js scene (zero chunk teardown on user action), permanent lake beds with depth surge, evening apartment lights. |
-| **Fast Simulation (C)** | COMPLETE | Neural Surrogate pre-warmed (1.8s rollout), uncompressed `np.savez`, zero-overhead Pydantic float validation. |
-| **Benchmark Testing (D)** | COMPLETE | Neural surrogate 1.8s, C++ SWE 21.6s, JSON serialization <30ms. |
+| **Fast Simulation (C)** | PARTIAL | Warm inference and uncompressed persistence remain; terrain arrays are cached, result grids use a binary gzip endpoint, and simulations submit as persisted jobs. |
+| **Benchmark Testing (D)** | PARTIAL | Matched 128²/256² baseline and candidate frames are identical; unused output bytes fell 66.7%. Single-pass wall times are noisy and show no solver speedup claim. 384² and RSS/CPU profiling remain open. |
 | **Retro-Terminal UI (E)** | COMPLETE | Dark retro-terminal aesthetic, single orange accent (`#ff6b00`), Inter/Roboto/Playfair/Libre fonts, top command dock. |
 | **Installable PWA (F)** | COMPLETE | `manifest.webmanifest`, offline/shell caching `sw.js`, standalone mobile & desktop support. |
 | **Cloud Deployments (G)** | READY | Render (`wetharepot.onrender.com`) & Vercel (`wetharepot.vercel.app`). |
@@ -98,6 +98,8 @@
 
 ## 4. Verification Benchmarks
 
+> Historical values below are retained from the previous progress record and were not independently reproduced in this task. See [docs/PERFORMANCE_AND_HISTORY.md](docs/PERFORMANCE_AND_HISTORY.md) for matched measurements, raw artifacts, and limits.
+
 | Metric | Measured Baseline | Measured Post-Optimization | Improvement |
 | :--- | :--- | :--- | :--- |
 | **Surrogate Rollout (30m)** | 16.39s (with load) | **1.82s** (warm) | **~9x faster** |
@@ -106,3 +108,26 @@
 | **Storage Save** | 3.5s (`savez_compressed`) | **0.15s** (`savez`) | **~23x faster** |
 | **Frontend Production Build**| 7.05s | **1.25s** | Clean zero warnings |
 | **Code Quality (oxlint)** | 0 warnings | **0 warnings, 0 errors** across 28 files | 100% compliant |
+
+---
+
+## 5. Solver Optimization & Past Flood Events (2026-11-16)
+
+### Implemented
+- [x] `/api/simulate` returns a run ID; a one-worker default executor records queued → preparing → running → post-processing → completed/failed stages in SQLite.
+- [x] Added lightweight run status polling, atomic active-request deduplication, visible stage progress in Simulation History, and persisted failure detail. Interrupted jobs are marked failed at next process startup. No false solver-step percentages are shown.
+- [x] Added 8-entry in-memory terrain array cache, removed redundant float32 cast allocations on solver file writes, and capped OpenMP/MKL threads through `SOLVER_OMP_THREADS` (default 2).
+- [x] Added gzip-compressed row-major binary result retrieval for the frontend; existing JSON result endpoint remains for compatibility.
+- [x] C++ CLI now writes only depth frames. Baseline/candidate matched-frame benchmark measured exactly 0 m max/mean difference and 1.0 flood-extent IoU on 20 frames across 128² and 256² grids at 5/15/30 minutes.
+- [x] Added source-linked Past Flood Events route, separate from Simulation History. It labels the RMSI analysis as modeled, reported localities as non-polygon evidence, and official vulnerable locations as context. Historical reconstruction is disabled until valid rainfall/time-matched geodata are available.
+- [x] Frontend production build succeeded with Bun; Vite reports a large bundle warning (1.99 MB minified, 536 KB gzip).
+
+### Not complete
+- [ ] Replace the in-process executor with a durable external broker if jobs must continue through process loss or scale across multiple workers.
+- [ ] Add safe solver cancellation and actual intra-solver step progress.
+- [ ] Run repeated benchmark rounds and collect peak memory, CPU utilization, API result-fetch latency, full response serialization, and matched ResUNet/physics timings.
+- [ ] Add a 384² matched benchmark; external OSM acquisition stalled during the attempted setup.
+- [ ] No defensible event-specific inundation polygons or satellite-derived extents are currently published; the explorer intentionally shows locality names as reports only.
+- [ ] No shallow-water equations, CFL rule, boundary conditions, physical parameters, or model architecture were changed.
+- [ ] Verify the linked NIDM and CAG PDFs in an accessible source environment; their hosts timed out/redirected during this review. The interface makes no specific claims from those two documents.
+- [ ] Rebuild and deploy the production container to include the updated C++ CLI and Python job/result API.

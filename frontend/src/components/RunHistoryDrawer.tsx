@@ -147,6 +147,17 @@ export function RunHistoryDrawer({
                     )}
                   </div>
 
+                  {run.status !== "completed" && run.status !== "failed" && (
+                    <div className="history-analytics-pill" aria-live="polite">
+                      <span>STAGE: <strong>{(run.stage ?? run.status).toUpperCase()}</strong></span>
+                      <span>WORKFLOW: <strong>{run.progress ?? 0}%</strong></span>
+                    </div>
+                  )}
+
+                  {run.status === "failed" && run.error_message && (
+                    <p className="history-error-state">{run.error_message}</p>
+                  )}
+
                   {hasAnalytics && run.analytics && (
                     <div className="history-analytics-pill">
                       <div>

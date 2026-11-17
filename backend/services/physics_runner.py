@@ -60,9 +60,9 @@ class CppShallowWaterRunner:
         interval_s = self._cfg.save_interval_s
 
         with managed_run_workspace(base_runs_dir, run_id) as (in_dir, out_dir):
-            terrain.dem.astype(np.float32).tofile(in_dir / "dem.bin")
-            terrain.building_mask.astype(np.float32).tofile(in_dir / "mask.bin")
-            terrain.roughness.astype(np.float32).tofile(in_dir / "rough.bin")
+            terrain.dem.astype(np.float32, copy=False).tofile(in_dir / "dem.bin")
+            terrain.building_mask.astype(np.float32, copy=False).tofile(in_dir / "mask.bin")
+            terrain.roughness.astype(np.float32, copy=False).tofile(in_dir / "rough.bin")
 
             cmd = [
                 str(self._cfg.executable_path),
@@ -77,8 +77,9 @@ class CppShallowWaterRunner:
 
             env = os.environ.copy()
             # Constrain OpenMP to prevent thread thrashing on cloud vCPUs
-            env.setdefault("OMP_NUM_THREADS", "2")
-            env.setdefault("MKL_NUM_THREADS", "2")
+            threads = str(max(1, int(os.getenv("SOLVER_OMP_THREADS", "2"))))
+            env["OMP_NUM_THREADS"] = threads
+            env["MKL_NUM_THREADS"] = threads
 
             t0 = time.perf_counter()
             try:

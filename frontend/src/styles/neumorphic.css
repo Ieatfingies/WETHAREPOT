@@ -1,6 +1,6 @@
 /* ==========================================================================
    WETHAREPOT | Distinctive Bohemian Cartographic Editorial Design System
-   Urban Flood Intelligence & Low-Poly 3D Digital Twin — Bengaluru
+   Urban Flood Intelligence & Low-Poly 3D Digital Twin â€” Bengaluru
    ========================================================================== */
 
 :root {
@@ -3560,7 +3560,7 @@ a:focus-visible {
 
 
 /* ==========================================================================
-   WETHAREPOT — Dark Retro-Terminal Command Interface & Digital Twin Styling
+   WETHAREPOT â€” Dark Retro-Terminal Command Interface & Digital Twin Styling
    Strict Retro-Terminal Palette with Orange Accent (#ff6b00)
    ========================================================================== */
 
@@ -4215,3 +4215,68 @@ a:focus-visible {
 ::-webkit-scrollbar-thumb:hover {
   background: #ff6b00;
 }
+
+/* Past Flood Events archive â€” source-first cartographic editorial extension */
+.past-flood-page { min-height: 100vh; background: #101210; color: #e8e8df; padding: 0 clamp(22px, 6vw, 96px) 28px; font-family: var(--font-field); }
+.past-flood-header { height: 72px; border-bottom: 1px solid #30332e; display: flex; align-items: center; gap: 26px; font: 10px var(--font-tabular); letter-spacing: .12em; color: #8e948a; }
+.past-back { border: 0; background: none; color: #f0eee5; cursor: pointer; font: inherit; letter-spacing: 0; }
+.past-live-status { margin-left: auto; color: #a8b293; }
+.past-live-status::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #bbd28f; margin-right: 9px; }
+.past-intro { max-width: 1200px; margin: 74px auto 64px; display: flex; justify-content: space-between; align-items: end; gap: 40px; }
+.past-eyebrow,.past-kicker,.past-rule,.past-section-label,.past-detail-date,.past-event-list label,.past-map-label,.past-map-type,.past-footer { font: 10px var(--font-tabular); letter-spacing: .12em; color: #9ca28f; }
+.past-intro h1 { font: 500 clamp(58px, 8vw, 106px)/.88 var(--font-editorial); letter-spacing: -.055em; margin: 18px 0 0; }
+.past-intro h1 em { color: #bdc59c; font-weight: 400; }
+.past-intro-copy { max-width: 380px; color: #aaada4; font-size: 14px; line-height: 1.8; margin: 0 3% 6px 0; }
+.past-rule { max-width: 1200px; margin: 0 auto 20px; display: flex; justify-content: space-between; border-bottom: 1px solid #393c36; padding-bottom: 13px; }
+.past-browser { max-width: 1200px; margin: auto; display: grid; grid-template-columns: minmax(245px, 34%) 1fr; min-height: 620px; border: 1px solid #30332e; }
+.past-event-list { padding: 22px 20px; border-right: 1px solid #30332e; }
+.past-event-list label { display: block; margin: 2px 0 10px; font-size: 9px; }
+.past-event-list input { width: 100%; background: #181b18; border: 1px solid #343832; color: #eee; padding: 11px; outline: none; font: 12px var(--font-field); margin-bottom: 18px; }
+.past-event-list input:focus { border-color: #a8b293; }
+.past-event-row { width: 100%; border: 0; border-top: 1px solid #2e322d; background: none; color: inherit; display: grid; grid-template-columns: 28px 1fr 14px; gap: 10px; align-items: start; padding: 18px 5px; text-align: left; cursor: pointer; }
+.past-event-row.selected { background: #1b201a; box-shadow: inset 2px 0 #c3cba7; }
+.past-event-row:hover { background: #1a1e19; }
+.past-index,.past-event-row b { color: #7f8971; font: 10px var(--font-tabular); }
+.past-event-row small { display: block; color: #9fa58f; font: 9px var(--font-tabular); letter-spacing: .08em; margin-bottom: 7px; }
+.past-event-row strong { display: block; font: 16px var(--font-editorial); font-weight: 500; }
+.past-no-results { color: #9fa58f; font-size: 12px; }
+.past-detail { padding: clamp(24px, 4vw, 54px); }
+.past-detail-top { display: flex; justify-content: space-between; align-items: center; }
+.past-kind,.past-confidence { font: 9px var(--font-tabular); letter-spacing: .1em; color: #b1ba9a; border: 1px solid #41483c; padding: 7px 9px; text-transform: uppercase; }
+.past-confidence { border: 0; color: #b7c995; }
+.past-detail-date { margin: 36px 0 12px; }
+.past-detail h2 { margin: 0; font: 500 clamp(31px, 4vw, 47px)/1.1 var(--font-editorial); letter-spacing: -.025em; }
+.past-summary { max-width: 720px; color: #b5b8ad; font-size: 14px; line-height: 1.75; margin: 19px 0 30px; }
+.past-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; border-top: 1px solid #343832; border-bottom: 1px solid #343832; padding: 18px 0; }
+.past-facts span { color: #8f9883; font: 9px var(--font-tabular); letter-spacing: .08em; }
+.past-facts p,.past-map-note p { color: #c3c5bc; font-size: 12px; line-height: 1.65; margin: 9px 0 0; }
+.past-map-note { margin: 24px 0 26px; padding: 14px; background: #171a17; display: grid; grid-template-columns: minmax(180px, 42%) 1fr; align-items: center; gap: 20px; }
+.past-map-grid { position: relative; height: 108px; overflow: hidden; padding: 12px; background-color: #1b201b; background-image: linear-gradient(#333a32 1px, transparent 1px),linear-gradient(90deg,#333a32 1px,transparent 1px); background-size: 22px 22px; }
+.past-map-label { position: relative; z-index: 1; font-size: 8px; }
+.past-map-line { position: absolute; width: 145%; height: 1px; background: #777f6a; top: 55%; left: -12%; transform: rotate(-17deg); opacity: .7; }
+.past-map-pin { position: absolute; top: 48%; left: 56%; color: #d2a16d; font: 22px var(--font-tabular); }
+.past-map-caption { position: absolute; bottom: 9px; left: 12px; color: #a4aa9a; font: 8px/1.5 var(--font-tabular); }
+.past-map-type { font-size: 8px; }
+.past-sources { margin-top: 22px; }
+.past-sources>a { color: #e3e3d9; border-top: 1px solid #343832; padding: 12px 2px; display: flex; justify-content: space-between; text-decoration: none; font-size: 11px; }
+.past-sources>a:hover { color: #c9d2ad; }
+.past-section-label { display: block; margin-bottom: 12px; }
+.past-reconstruction { max-width: 1200px; margin: 24px auto 64px; border: 1px solid #383b34; background: #171a17; padding: 21px 24px; display: grid; grid-template-columns: 190px 1fr auto; gap: 20px; align-items: center; }
+.past-reconstruction .past-section-label { margin: 0; }
+.past-reconstruction h3 { margin: 0 0 5px; font: 21px var(--font-editorial); font-weight: 500; }
+.past-reconstruction p { margin: 0; color: #a9ada3; font-size: 11px; line-height: 1.6; max-width: 700px; }
+.past-reconstruction button { border: 1px solid #494c43; color: #858a7e; background: transparent; padding: 10px 12px; font: 9px var(--font-tabular); letter-spacing: .08em; }
+.past-references { max-width: 1200px; margin: auto; }
+.past-reference-grid { display: grid; grid-template-columns: repeat(4,1fr); border-left: 1px solid #30332e; border-top: 1px solid #30332e; }
+.past-reference-grid a { min-height: 122px; padding: 16px; border-right: 1px solid #30332e; border-bottom: 1px solid #30332e; color: #e3e3d9; text-decoration: none; display: flex; flex-direction: column; align-items: start; }
+.past-reference-grid a:hover { background: #181c18; }
+.past-reference-grid small { color: #9da68b; font: 9px var(--font-tabular); margin-bottom: 10px; }
+.past-reference-grid strong { font: 15px/1.25 var(--font-editorial); font-weight: 500; }
+.past-reference-grid a span { color: #8a927c; font: 8px var(--font-tabular); margin-top: auto; padding-top: 14px; }
+.past-caveat { color: #888e83; font-size: 10px; line-height: 1.6; }
+.past-footer { max-width: 1200px; margin: 36px auto 0; border-top: 1px solid #30332e; padding-top: 15px; display: flex; justify-content: space-between; font-size: 8px; }
+.past-events-nav { color: #b9c09f !important; white-space: nowrap; }
+@media (max-width: 760px) { .past-intro { margin: 46px auto; display: block; } .past-intro-copy { margin-top: 25px; } .past-browser { grid-template-columns: 1fr; } .past-event-list { border-right: 0; border-bottom: 1px solid #30332e; } .past-event-row { padding: 13px 5px; } .past-facts { grid-template-columns: 1fr; gap: 15px; } .past-map-note { grid-template-columns: 1fr; } .past-reconstruction { grid-template-columns: 1fr; gap: 12px; } .past-reconstruction button { justify-self: start; } .past-reference-grid { grid-template-columns: repeat(2,1fr); } .past-footer { display: block; line-height: 2; } .past-footer span { display: block; } }
+
+.past-map-grid { background-image: none; border: 1px dashed #454b42; }
+.past-map-line,.past-map-pin { display: none; }\n

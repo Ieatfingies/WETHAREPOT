@@ -1,0 +1,100 @@
+{
+  "binary": "C:\\Users\\ASUS\\WETHAREPOT\\build\\swe_solver_oneway.exe",
+  "settings": {
+    "rain_mmhr": 80,
+    "save_interval_s": 300,
+    "omp_threads": 2
+  },
+  "results": [
+    {
+      "region": "bellandur",
+      "grid": 128,
+      "resolution_m": 10,
+      "duration_min": 5,
+      "terrain_preparation_ms": 9.24,
+      "solver_wall_ms": 1254.7,
+      "solver_steps": 300,
+      "mean_ms_per_step": 4.1823,
+      "output_bytes": 65536,
+      "json_frame_serialization_ms": 24.06,
+      "peak_rss_bytes": null,
+      "cpu_threads": 2,
+      "stdout": "[SWE] Completed 300s sim (300 CFL steps) in 1146.12 ms | Final water vol: 10304.1 m^3"
+    },
+    {
+      "region": "bellandur",
+      "grid": 128,
+      "resolution_m": 10,
+      "duration_min": 15,
+      "terrain_preparation_ms": 9.24,
+      "solver_wall_ms": 3296.62,
+      "solver_steps": 900,
+      "mean_ms_per_step": 3.6629,
+      "output_bytes": 196608,
+      "json_frame_serialization_ms": 66.41,
+      "peak_rss_bytes": null,
+      "cpu_threads": 2,
+      "stdout": "[SWE] Completed 900s sim (900 CFL steps) in 3193.96 ms | Final water vol: 30539.1 m^3"
+    },
+    {
+      "region": "bellandur",
+      "grid": 128,
+      "resolution_m": 10,
+      "duration_min": 30,
+      "terrain_preparation_ms": 9.24,
+      "solver_wall_ms": 6119.39,
+      "solver_steps": 1800,
+      "mean_ms_per_step": 3.3997,
+      "output_bytes": 393216,
+      "json_frame_serialization_ms": 133.26,
+      "peak_rss_bytes": null,
+      "cpu_threads": 2,
+      "stdout": "[SWE] Completed 1800s sim (1800 CFL steps) in 5997.9 ms | Final water vol: 60093.6 m^3"
+    },
+    {
+      "region": "bellandur",
+      "grid": 256,
+      "resolution_m": 10,
+      "duration_min": 5,
+      "terrain_preparation_ms": 1.36,
+      "solver_wall_ms": 3833.37,
+      "solver_steps": 300,
+      "mean_ms_per_step": 12.7779,
+      "output_bytes": 262144,
+      "json_frame_serialization_ms": 115.67,
+      "peak_rss_bytes": null,
+      "cpu_threads": 2,
+      "stdout": "[SWE] Completed 300s sim (300 CFL steps) in 3721.82 ms | Final water vol: 38289.3 m^3"
+    },
+    {
+      "region": "bellandur",
+      "grid": 256,
+      "resolution_m": 10,
+      "duration_min": 15,
+      "terrain_preparation_ms": 1.36,
+      "solver_wall_ms": 11412.17,
+      "solver_steps": 900,
+      "mean_ms_per_step": 12.6802,
+      "output_bytes": 786432,
+      "json_frame_serialization_ms": 283.14,
+      "peak_rss_bytes": null,
+      "cpu_threads": 2,
+      "stdout": "[SWE] Completed 900s sim (900 CFL steps) in 11291.8 ms | Final water vol: 114257 m^3"
+    },
+    {
+      "region": "bellandur",
+      "grid": 256,
+      "resolution_m": 10,
+      "duration_min": 30,
+      "terrain_preparation_ms": 1.36,
+      "solver_wall_ms": 23578.43,
+      "solver_steps": 1883,
+      "mean_ms_per_step": 12.5217,
+      "output_bytes": 1572864,
+      "json_frame_serialization_ms": 603.83,
+      "peak_rss_bytes": null,
+      "cpu_threads": 2,
+      "stdout": "[SWE] Completed 1800s sim (1883 CFL steps) in 23464.1 ms | Final water vol: 227202 m^3"
+    }
+  ]
+}

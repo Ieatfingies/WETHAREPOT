@@ -4,6 +4,7 @@ import {
   fetchRegions,
   fetchRegionTerrain,
   fetchRunDetails,
+  fetchRunStatus,
   runFloodSimulation,
   fetchLiveWeather,
   fetchLiveCatchments,
@@ -24,6 +25,7 @@ import { ContactPage } from "./components/pages/ContactPage";
 import { PrivacyPolicyPage } from "./components/pages/PrivacyPolicyPage";
 import { TermsPage } from "./components/pages/TermsPage";
 import { NotFoundPage } from "./components/pages/NotFoundPage";
+import { PastFloodEventsPage } from "./components/pages/PastFloodEventsPage";
 import { useRouter } from "./router/useRouter";
 import {
   CompassRoseIcon,
@@ -90,6 +92,8 @@ export function App() {
 
   // Simulation execution & results state
   const [loading, setLoading] = useState<boolean>(false);
+  const [jobStage, setJobStage] = useState<string>("");
+  const [jobProgress, setJobProgress] = useState<number>(0);
   const [justSucceeded, setJustSucceeded] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SimulationResponse | null>(null);
@@ -270,7 +274,20 @@ export function App() {
         engine,
       };
 
-      const sim = await runFloodSimulation(payload, controller.signal);
+      const accepted = await runFloodSimulation(payload, controller.signal);
+      setJobStage(accepted.stage);
+      setJobProgress(accepted.progress);
+      let status = await fetchRunStatus(accepted.run_id, controller.signal);
+      while (status.status !== "completed" && status.status !== "failed") {
+        setJobStage(status.stage);
+        setJobProgress(status.progress);
+        await new Promise((resolve) => window.setTimeout(resolve, 900));
+        status = await fetchRunStatus(accepted.run_id, controller.signal);
+      }
+      setJobStage(status.stage);
+      setJobProgress(status.progress);
+      if (status.status === "failed") throw new Error(status.error_message || "Simulation failed. See run status for details.");
+      const sim = await fetchRunDetails(accepted.run_id, controller.signal);
 
       setResult(sim);
       // Synchronize to the final simulation state frame
@@ -338,6 +355,7 @@ export function App() {
   if (currentPath === "/methodology") {
     return <MethodologyPage onBackToAtlas={() => navigate("/")} />;
   }
+  if (currentPath === "/past-floods") return <PastFloodEventsPage onBack={() => navigate("/")} />;
   if (currentPath === "/contact") {
     return <ContactPage onBackToAtlas={() => navigate("/")} />;
   }
@@ -397,6 +415,7 @@ export function App() {
         {/* Right: Quick Stage Controls */}
         <div className="topbar-right">
           {/* 2D / 3D Viewport Toggle */}
+          <button type="button" className="terminal-icon-btn past-events-nav" onClick={() => navigate("/past-floods")} title="Browse documented historical Bengaluru floods">PAST FLOODS</button>
           <div className="viewport-toggle-pill" role="radiogroup" aria-label="Viewport Mode">
             <button
               type="button"
@@ -445,7 +464,7 @@ export function App() {
               {loading ? (
                 <>
                   <span className="btn-spinner" />
-                  <span>SIMULATING...</span>
+                  <span>{jobStage.replace("-", " ").toUpperCase()} · {jobProgress}%</span>
                 </>
               ) : justSucceeded ? (
                 <span>SOLVED ✓</span>

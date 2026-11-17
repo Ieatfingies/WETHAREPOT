@@ -56,9 +56,27 @@ export async function fetchRunDetails(
   runId: string,
   signal?: AbortSignal
 ): Promise<SimulationResponse> {
-  const res = await fetch(`${API_BASE}/runs/${encodeURIComponent(runId)}`, { signal });
+  const res = await fetch(`${API_BASE}/runs/${encodeURIComponent(runId)}/grid-bundle`, {
+    signal,
+    headers: { Accept: "application/vnd.wetharepot.grid-bundle" },
+  });
   if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<SimulationResponse>;
+  const buffer = await res.arrayBuffer();
+  const view = new DataView(buffer);
+  const headerLength = view.getUint32(0, true);
+  const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, headerLength))) as Omit<SimulationResponse, "dem" | "building_mask" | "frames_h"> & { shape: [number, number]; frame_count: number };
+  let offset = (4 + headerLength + 3) & ~3;
+  const [height, width] = header.shape;
+  const cells = height * width;
+  const demData = new Float32Array(buffer, offset, cells); offset += cells * 4;
+  const buildingData = new Uint8Array(buffer, offset, cells); offset = (offset + cells + 3) & ~3;
+  const framesData = new Float32Array(buffer, offset, cells * header.frame_count);
+  const rows = (data: Float32Array | Uint8Array, start: number) => Array.from({ length: height }, (_, row) => Array.from(data.subarray(start + row * width, start + (row + 1) * width)));
+  const dem = rows(demData, 0);
+  const building_mask = rows(buildingData, 0);
+  const frames_h = Array.from({ length: header.frame_count }, (_, frame) => rows(framesData, frame * cells));
+  const { shape: _shape, frame_count: _frameCount, ...details } = header;
+  return { ...details, dem, building_mask, frames_h };
 }
 
 export async function fetchLiveWeather(
@@ -119,7 +137,7 @@ export async function updateAlertAction(
 export async function runFloodSimulation(
   payload: SimulationRequest,
   signal?: AbortSignal
-): Promise<SimulationResponse> {
+): Promise<{ run_id: string; status: string; stage: string; progress: number; duplicate: boolean }> {
   const res = await fetch(`${API_BASE}/simulate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -127,5 +145,11 @@ export async function runFloodSimulation(
     signal,
   });
   if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<SimulationResponse>;
+  return res.json();
+}
+
+export async function fetchRunStatus(runId: string, signal?: AbortSignal) {
+  const res = await fetch(`${API_BASE}/runs/${encodeURIComponent(runId)}/status`, { signal });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json() as Promise<{ run_id: string; status: string; stage: string; progress: number; error_message?: string }>;
 }

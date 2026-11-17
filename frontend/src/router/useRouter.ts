@@ -1,11 +1,15 @@
 import { useEffect, useState, useCallback, useTransition } from "react";
 
-export type AppRoute = "/" | "/methodology" | "/contact" | "/privacy" | "/terms" | "/404";
+export type AppRoute = "/" | "/past-floods" | "/methodology" | "/contact" | "/privacy" | "/terms" | "/404";
 
 const ROUTE_METADATA: Record<string, { title: string; description: string }> = {
   "/": {
     title: "WETHAREPOT — Urban Flood Intelligence & Hydrologic Cartography",
     description: "High-resolution 2D shallow water equation solver & real-time hydrologic flood simulation across Bengaluru catchments.",
+  },
+  "/past-floods": {
+    title: "Past Flood Events — WETHAREPOT",
+    description: "Source-linked historical Bengaluru flood events, vulnerability context, and clearly distinguished evidence.",
   },
   "/methodology": {
     title: "Methodology & Physical Specification — WETHAREPOT",
@@ -36,6 +40,7 @@ function normalizePath(pathname: string): AppRoute {
   const clean = target.replace(/\/+$/, "") || "/";
 
   if (clean === "/" || clean === "") return "/";
+  if (clean === "/past-floods") return "/past-floods";
   if (clean === "/methodology") return "/methodology";
   if (clean === "/contact") return "/contact";
   if (clean === "/privacy") return "/privacy";

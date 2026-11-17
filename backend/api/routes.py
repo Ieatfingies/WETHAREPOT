@@ -1,18 +1,26 @@
 import json
+import gzip
+import os
+import struct
 import time
-from pathlib import Path
+from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Response
 
 from backend.core.config import SETTINGS
-from backend.core.schemas import HealthResponse, SimulationRequest, SimulationResponse
+from backend.core.schemas import HealthResponse, SimulationRequest
 from backend.core.db import (
     init_db,
-    record_simulation_start,
     record_simulation_completion,
     record_simulation_failure,
     list_recent_runs,
     get_run_details,
+    get_run_result_arrays,
+    get_run_status as db_get_run_status,
+    set_simulation_stage,
+    create_simulation_job,
+    simulation_request_hash,
 )
 from backend.services.live_weather import fetch_live_weather
 from backend.services.catchment_risk import evaluate_catchment_risks
@@ -36,12 +44,29 @@ from geospatial.acquisition.regions import BENGALURU_REGIONS
 from geospatial.grid_generation.builder import build_region_grids
 
 router = APIRouter(prefix="/api")
+_job_executor = ThreadPoolExecutor(max_workers=max(1, int(os.getenv("SIMULATION_JOB_WORKERS", "1"))), thread_name_prefix="flood-job")
 
 _physics_runner = CppShallowWaterRunner(SETTINGS.solver)
 _surrogate_runner = NeuralSurrogateRunner(SETTINGS.surrogate, SETTINGS.solver)
 
 # Initialize database on startup
 init_db()
+
+
+@lru_cache(maxsize=8)
+def _cached_terrain(npz_path: str) -> TerrainInputs:
+    with np.load(npz_path) as geo:
+        arrays = [np.asarray(geo[key], dtype=np.float32) for key in ("dem", "building_mask", "roughness")]
+    for array in arrays:
+        array.setflags(write=False)
+    return TerrainInputs(*arrays)
+
+
+def _run_job_guarded(run_id: str, req: SimulationRequest) -> None:
+    try:
+        _execute_simulation(run_id, req)
+    except Exception as exc:
+        record_simulation_failure(run_id, f"Simulation job failed: {exc}")
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -82,9 +107,9 @@ def get_region_terrain(region_id: str) -> dict:
     with open(npz_path.replace(".npz", ".json"), "r", encoding="utf-8") as f:
         meta = json.load(f)
 
-    with np.load(npz_path) as geo:
-        dem = np.round(geo["dem"].astype(np.float32), 2).tolist()
-        building_mask = geo["building_mask"].astype(np.uint8).tolist()
+    terrain = _cached_terrain(npz_path)
+    dem = np.round(terrain.dem, 2).tolist()
+    building_mask = terrain.building_mask.astype(np.uint8, copy=False).tolist()
 
     return {
         "region_id": region_id,
@@ -109,16 +134,36 @@ def get_single_run(run_id: str) -> dict:
     return details
 
 
+@router.get("/runs/{run_id}/grid-bundle")
+def get_single_run_grid_bundle(run_id: str) -> Response:
+    """Compact gzip-compressed row-major float32/uint8 grids for the web client."""
+    run = get_run_result_arrays(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Completed result for run '{run_id}' not found.")
+    if run["status"] != "completed":
+        raise HTTPException(status_code=409, detail=f"Run '{run_id}' is {run['status']}.")
+    arrays = [np.ascontiguousarray(run["dem"], dtype=np.float32), np.ascontiguousarray(run["building_mask"], dtype=np.uint8), np.ascontiguousarray(run["frames_h"], dtype=np.float32)]
+    header = {key: run[key] for key in ("run_id", "region_id", "engine", "rain_mmhr", "duration_min", "status", "runtime_ms", "meta", "analytics")}
+    header["shape"] = list(arrays[0].shape)
+    header["frame_count"] = int(arrays[2].shape[0])
+    encoded_header = json.dumps(header, separators=(",", ":")).encode("utf-8")
+    padding = bytes((-len(encoded_header)) % 4)
+    frame_padding = bytes((-arrays[1].nbytes) % 4)
+    body = struct.pack("<I", len(encoded_header)) + encoded_header + padding + arrays[0].tobytes() + arrays[1].tobytes() + frame_padding + arrays[2].tobytes()
+    return Response(gzip.compress(body, compresslevel=1), media_type="application/vnd.wetharepot.grid-bundle", headers={"Content-Encoding": "gzip", "Cache-Control": "private, no-store"})
+
+
 @router.get("/runs/{run_id}/status")
-def get_run_status(run_id: str) -> dict:
+def get_run_status_route(run_id: str) -> dict:
     """Lightweight real-time status check for long-running simulation jobs."""
-    details = get_run_details(run_id)
+    details = db_get_run_status(run_id)
     if not details:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
     return {
         "run_id": details["run_id"],
         "status": details["status"],
         "runtime_ms": details["runtime_ms"],
+        "stage": details["stage"], "progress": details["progress"],
         "error_message": details.get("error_message"),
     }
 
@@ -136,43 +181,25 @@ def _save_run_result_storage(run_id: str, dem: np.ndarray, building_mask: np.nda
     return str(archive_path)
 
 
-@router.post("/simulate", response_model=SimulationResponse)
-def simulate_flood(req: SimulationRequest) -> SimulationResponse:
-    run_id = f"sim_{time.time_ns()}"
+def _execute_simulation(run_id: str, req: SimulationRequest) -> None:
     region_id = req.region_id or "custom"
-
-    # 1. Record start in database
-    record_simulation_start(
-        run_id=run_id,
-        region_id=region_id,
-        engine=req.engine,
-        rain_mmhr=req.rain_mmhr,
-        duration_min=req.duration_min,
-    )
-
     try:
+        set_simulation_stage(run_id, "preparing", 0)
         npz_path = build_region_grids(
             region_id=req.region_id if not req.custom_geojson else None,
             custom_geojson=req.custom_geojson,
             grid_size=SETTINGS.solver.grid_size,
             resolution_m=SETTINGS.solver.resolution_m,
         )
-    except ValueError as exc:
-        record_simulation_failure(run_id, str(exc))
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        record_simulation_failure(run_id, f"GIS upstream error: {exc}")
-        raise HTTPException(status_code=502, detail=f"GIS upstream error: {exc}") from exc
+        set_simulation_stage(run_id, "running", 33)
+    except Exception as exc:
+        record_simulation_failure(run_id, f"Terrain preparation failed: {exc}")
+        return
 
     with open(npz_path.replace(".npz", ".json"), "r", encoding="utf-8") as f:
         meta = json.load(f)
 
-    with np.load(npz_path) as geo:
-        terrain = TerrainInputs(
-            dem=geo["dem"].astype(np.float32),
-            building_mask=geo["building_mask"].astype(np.float32),
-            roughness=geo["roughness"].astype(np.float32),
-        )
+    terrain = _cached_terrain(npz_path)
 
     try:
         if req.engine == "physics":
@@ -190,11 +217,12 @@ def simulate_flood(req: SimulationRequest) -> SimulationResponse:
             )
     except SurrogateUnavailableError as exc:
         record_simulation_failure(run_id, str(exc))
-        raise HTTPException(status_code=501, detail=str(exc)) from exc
+        return
     except SolverExecutionError as exc:
         record_simulation_failure(run_id, str(exc))
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return
 
+    set_simulation_stage(run_id, "post-processing", 66)
     analytics = compute_flood_analytics(
         final_depth_m=frames[-1],
         resolution_m=SETTINGS.solver.resolution_m,
@@ -217,18 +245,18 @@ def simulate_flood(req: SimulationRequest) -> SimulationResponse:
             result_storage_path=storage_path,
         )
     except Exception as e:
-        print(f"Warning: could not persist simulation to DB: {e}")
+        record_simulation_failure(run_id, f"Could not persist simulation result: {e}")
 
-    return SimulationResponse(
-        run_id=run_id,
-        engine=req.engine,
-        runtime_ms=round(runtime_ms, 2),
-        meta=meta,
-        analytics=analytics,
-        dem=np.round(terrain.dem, 2).tolist(),
-        building_mask=terrain.building_mask.astype(np.uint8).tolist(),
-        frames_h=[np.round(frame, 3).tolist() for frame in frames],
-    )
+
+@router.post("/simulate")
+def simulate_flood(req: SimulationRequest) -> dict:
+    payload = req.model_dump(mode="json")
+    request_hash = simulation_request_hash(payload)
+    run_id = f"sim_{time.time_ns()}"
+    accepted = create_simulation_job(run_id, req.region_id or "custom", req.engine, req.rain_mmhr, req.duration_min, request_hash)
+    if not accepted["duplicate"]:
+        _job_executor.submit(_run_job_guarded, accepted["run_id"], req)
+    return accepted
 
 
 # ==============================================================================

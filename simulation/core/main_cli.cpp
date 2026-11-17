@@ -60,8 +60,6 @@ int main(int argc, char** argv) {
         std::ostringstream oss;
         oss << out_dir << "/frame_" << std::setw(4) << std::setfill('0') << frame++;
         saveBinary(oss.str() + "_h.bin", state.h);
-        saveBinary(oss.str() + "_u.bin", state.u);
-        saveBinary(oss.str() + "_v.bin", state.v);
     }
     auto t1 = std::chrono::high_resolution_clock::now();
     double elapsed_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();

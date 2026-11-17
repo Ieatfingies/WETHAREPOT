@@ -1,0 +1,170 @@
+{
+  "baseline_frames": "docs\\benchmark-baseline-frames-2026-11-16.npz",
+  "candidate_frames": "docs\\benchmark-candidate-frames-2026-11-16.npz",
+  "frame_count": 20,
+  "results": [
+    {
+      "frame": "g128_t15_f0",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 10304.126491106581,
+      "candidate_depth_volume_m3": 10304.126491106581
+    },
+    {
+      "frame": "g128_t15_f1",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 20486.90880088834,
+      "candidate_depth_volume_m3": 20486.90880088834
+    },
+    {
+      "frame": "g128_t15_f2",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 30539.076749642845,
+      "candidate_depth_volume_m3": 30539.076749642845
+    },
+    {
+      "frame": "g128_t30_f0",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 10304.126491106581,
+      "candidate_depth_volume_m3": 10304.126491106581
+    },
+    {
+      "frame": "g128_t30_f1",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 20486.90880088834,
+      "candidate_depth_volume_m3": 20486.90880088834
+    },
+    {
+      "frame": "g128_t30_f2",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 30539.076749642845,
+      "candidate_depth_volume_m3": 30539.076749642845
+    },
+    {
+      "frame": "g128_t30_f3",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 40477.42322507547,
+      "candidate_depth_volume_m3": 40477.42322507547
+    },
+    {
+      "frame": "g128_t30_f4",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 50324.05464169569,
+      "candidate_depth_volume_m3": 50324.05464169569
+    },
+    {
+      "frame": "g128_t30_f5",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 60093.64012039732,
+      "candidate_depth_volume_m3": 60093.64012039732
+    },
+    {
+      "frame": "g128_t5_f0",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 10304.126491106581,
+      "candidate_depth_volume_m3": 10304.126491106581
+    },
+    {
+      "frame": "g256_t15_f0",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 38289.325197646394,
+      "candidate_depth_volume_m3": 38289.325197646394
+    },
+    {
+      "frame": "g256_t15_f1",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 76356.5054101753,
+      "candidate_depth_volume_m3": 76356.5054101753
+    },
+    {
+      "frame": "g256_t15_f2",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 114256.51774299331,
+      "candidate_depth_volume_m3": 114256.51774299331
+    },
+    {
+      "frame": "g256_t30_f0",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 38289.325197646394,
+      "candidate_depth_volume_m3": 38289.325197646394
+    },
+    {
+      "frame": "g256_t30_f1",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 76356.5054101753,
+      "candidate_depth_volume_m3": 76356.5054101753
+    },
+    {
+      "frame": "g256_t30_f2",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 114256.51774299331,
+      "candidate_depth_volume_m3": 114256.51774299331
+    },
+    {
+      "frame": "g256_t30_f3",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 152070.72622389533,
+      "candidate_depth_volume_m3": 152070.72622389533
+    },
+    {
+      "frame": "g256_t30_f4",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 189735.56208431255,
+      "candidate_depth_volume_m3": 189735.56208431255
+    },
+    {
+      "frame": "g256_t30_f5",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 227202.4685128359,
+      "candidate_depth_volume_m3": 227202.4685128359
+    },
+    {
+      "frame": "g256_t5_f0",
+      "max_abs_depth_difference_m": 0.0,
+      "mean_abs_error_m": 0.0,
+      "flood_extent_iou_at_0_05m": 1.0,
+      "baseline_depth_volume_m3": 38289.325197646394,
+      "candidate_depth_volume_m3": 38289.325197646394
+    }
+  ],
+  "max_depth_error_m": 0.0,
+  "mean_absolute_error_m": 0.0,
+  "mean_extent_iou": 1.0
+}

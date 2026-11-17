@@ -67,7 +67,9 @@ export interface HistoricalRunSummary {
   engine: SimulationEngine;
   rain_mmhr: number;
   duration_min: number;
-  status: "queued" | "running" | "completed" | "failed";
+  status: "queued" | "preparing" | "running" | "post-processing" | "completed" | "failed";
+  stage?: string;
+  progress?: number;
   runtime_ms?: number;
   error_message?: string;
   analytics?: FloodAnalytics;
